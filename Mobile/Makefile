@@ -1,0 +1,12 @@
+CC = gcc
+OBJ = Mobile_Shader.o LoadShader.o Matrix.o
+CFLAGS = -g -Wall -Wextra
+
+LDLIBS=-lm -lglut -lGLEW -lGL
+
+mobileshader: $(OBJ)
+	 $(CC) -o $@ $^ $(CFLAGS) $(LDLIBS)
+
+clean:
+	rm -f *.o mobileshader
+.PHONY: all clean
