@@ -45,7 +45,9 @@ GLuint ShaderProgram;
 float ProjectionMatrix[16]; /* Perspective projection matrix */
 float ViewMatrix[16]; /* Camera view matrix */ 
 float ModelMatrix[16]; /* Model matrix */ 
-float FigureMatrix[16];
+float FigureMatrix[16]; /*for the rotating cube*/
+float FigureMatrix2[16]; /*for the second cube */
+float FigureMatrix3[16]; /*for the tiny cube in the middle*/
 
 /* Transformation matrices for initial position */
 float TranslateOrigin[16];
@@ -54,26 +56,32 @@ float RotateX[16];
 float RotateZ[16];
 float InitialTransform[16];
 float RotationMatrix[16];
+float RotationMatrixAnim[16]; /*for the rotating cube*/
+float TranslateLeft[16];
+float TranslateRight[16];
+float TranslateMiddle[16];
+float TranslateLowest[16];
+float InitialTransformCube[16];
 
-/*green octangle roof*/
+/*green octangle used as upper layer*/
 
 GLfloat vertex_buffer_data3[] = {
-    -2, 0.5, 2,
-     2, 0.5, 2,
-     2, 0.5, -2,
-    -2, 0.5, -2,
-    -2, 0.6, 2,
-     2, 0.6, 2,
-     2, 0.6, -2,
-    -2, 0.6, -2,
-     3, 0.5, 0,
-     3, 0.6, 0,
-    -3, 0.5, 0,
-    -3, 0.6, 0,
-     0, 0.5, 3,
-     0, 0.6, 3,
-     0, 0.6, -3,
-     0, 0.5, -3,
+    -3, 1, 3,
+     3, 1, 3,
+     3, 1, -3,
+    -3, 1, -3,
+    -3, 1.1, 3,
+     3, 1.1, 3,
+     3, 1.1, -3,
+    -3, 1.1, -3,
+     4, 1, 0,
+     4, 1.1, 0,
+    -4, 1, 0,
+    -4, 1.1, 0,
+     0, 1, 4,
+     0, 1.1, 4,
+     0, 1, -4,
+     0, 1.1, -4,
 };   
 
 GLfloat color_buffer_data3[] = { /* green color for roof*/
@@ -255,9 +263,18 @@ void Display()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO2);
     glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
     
-    MultiplyMatrix(RotationMatrix, FigureMatrix, FigureMatrix);			//cube
+    MultiplyMatrix(RotationMatrixAnim, FigureMatrix, FigureMatrix);			//rotating cube
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+
+    MultiplyMatrix(RotationMatrixAnim, FigureMatrix2, FigureMatrix2);			//rotating cube
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix2);  
+    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+
+    MultiplyMatrix(RotationMatrixAnim, FigureMatrix3, FigureMatrix3);			//rotating cube
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix3);  
+    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);	
+
 
     /* Disable attributes */
     glDisableVertexAttribArray(vPosition);
@@ -278,8 +295,7 @@ void Display()
 void OnIdle()
 {
     float angle = (glutGet(GLUT_ELAPSED_TIME) / 1000.0) * (180.0/M_PI);
-    float figureAngle = (-glutGet(GLUT_ELAPSED_TIME) /2000.0) * (180.0/M_PI);
-    float RotationMatrixAnim[16];
+    float figureAngle = (glutGet(GLUT_ELAPSED_TIME) /1000.0) * (180.0/M_PI);
 
     /* Time dependent rotation */
     SetRotationY(angle, RotationMatrixAnim);
@@ -289,8 +305,16 @@ void OnIdle()
     MultiplyMatrix(TranslateDown, ModelMatrix, ModelMatrix);
     
     SetRotationY(figureAngle, RotationMatrixAnim);
-    MultiplyMatrix(RotationMatrixAnim,InitialTransform, FigureMatrix);
-    MultiplyMatrix(TranslateDown, FigureMatrix, FigureMatrix);
+    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, FigureMatrix);
+    MultiplyMatrix(TranslateLeft, FigureMatrix, FigureMatrix);
+
+    SetRotationY(figureAngle, RotationMatrixAnim);
+    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, FigureMatrix2);
+    MultiplyMatrix(TranslateRight, FigureMatrix2, FigureMatrix2);
+
+    SetRotationY(figureAngle, RotationMatrixAnim);
+    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, FigureMatrix3);
+    MultiplyMatrix(TranslateMiddle, FigureMatrix3, FigureMatrix3);
 
     /* Request redrawing forof window content */  
     glutPostRedisplay();
@@ -446,6 +470,7 @@ void CreateShaderProgram()
 
 void Initialize(void)
 {   
+
     /* Set background (clear) color to black */ 
     glClearColor(0.0, 0.0, 0.0, 0.0);
 
@@ -473,7 +498,7 @@ void Initialize(void)
     SetPerspectiveMatrix(fovy, aspect, nearPlane, farPlane, ProjectionMatrix);
 
     /* Set viewing transform */
-    float camera_disp = -10.0;
+    float camera_disp = -20.0;
     SetTranslation(0.0, 0.0, camera_disp, ViewMatrix);
 
     /* Translate and rotate cube onto tip */
@@ -484,9 +509,65 @@ void Initialize(void)
     /* Translate down */	
     SetTranslation(0, sqrtf(sqrtf(90.0) * 1.0), 0, TranslateDown);
 
+    
     /* Initial transformation matrix */
     MultiplyMatrix(RotateX, TranslateOrigin, InitialTransform);
     MultiplyMatrix(RotateZ, InitialTransform, InitialTransform);
+
+    float tmp[16];
+    float tmp_x[16];
+    float tmp_z[16];
+   // float x = 0.0; //abstand vom rotationsmittelpunkt
+   // float y = 0.0; //abstand vom rotationsmittelpunkt
+   // float z = 0.0; //up and down, change in height
+    
+    SetTranslation(0, 0, 0, tmp);
+    SetRotationX(-45, tmp_x);
+    SetRotationZ(35, tmp_z);	
+
+    /* Translate cube to lefthand side */	
+    SetTranslation(-3, -sqrtf(sqrtf(2.0) * 1.0)+2, 0, TranslateLeft);
+    
+    MultiplyMatrix(tmp_x, tmp, InitialTransformCube);
+    MultiplyMatrix(tmp_z, InitialTransformCube, InitialTransformCube);
+
+
+    float tmp2[16];
+    float tmp_x2[16];
+    float tmp_z2[16];
+   // float x = 0.0; //abstand vom rotationsmittelpunkt
+   // float y = 0.0; //abstand vom rotationsmittelpunkt
+   // float z = 0.0; //up and down, change in height
+    
+    SetTranslation(0, 0, 0, tmp2);
+    SetRotationX(-45, tmp_x2);
+    SetRotationZ(35, tmp_z2);	
+
+    /* Translate cube to lefthand side */	
+    SetTranslation(3, -sqrtf(sqrtf(2.0) * 1.0)+2, 0, TranslateRight);
+    
+    MultiplyMatrix(tmp_x2, tmp2, InitialTransformCube);
+    MultiplyMatrix(tmp_z2, InitialTransformCube, InitialTransformCube);
+
+    float tmp3[16];
+    float tmp_x3[16];
+    float tmp_z3[16];
+   // float x = 0.0; //abstand vom rotationsmittelpunkt
+   // float y = 0.0; //abstand vom rotationsmittelpunkt
+   // float z = 0.0; //up and down, change in height
+    
+    
+    SetTranslation(0, 0, 0, tmp3);
+    SetRotationX(-45, tmp_x3);
+    SetRotationZ(35, tmp_z3);	
+
+    /* Translate cube to lefthand side */	
+    SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-2, 0, TranslateMiddle);
+    SetScaling(0.5, 0.5, 0.5, TranslateMiddle);
+    MultiplyMatrix(tmp_x3, tmp3, InitialTransformCube);
+    MultiplyMatrix(tmp_z3, InitialTransformCube, InitialTransformCube);
+
+
 }
 
 
