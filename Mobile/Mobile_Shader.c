@@ -48,6 +48,7 @@ float ModelMatrix[16]; /* Model matrix */
 float FigureMatrix[16]; /*for the rotating cube*/
 float FigureMatrix2[16]; /*for the second cube */
 float FigureMatrix3[16]; /*for the tiny cube in the middle*/
+float FigureMatrix4[16]; /*for cube hanging on the lowest in the middle*/
 
 /* Transformation matrices for initial position */
 float TranslateOrigin[16];
@@ -56,12 +57,15 @@ float RotateX[16];
 float RotateZ[16];
 float InitialTransform[16];
 float RotationMatrix[16];
-float RotationMatrixAnim[16]; /*for the rotating cube*/
+float RotationMatrixAnim[16]; /*for the rotating cubes*/
+float RotationMatrixAnim2[16];
 float TranslateLeft[16];
 float TranslateRight[16];
 float TranslateMiddle[16];
 float TranslateLowest[16];
 float InitialTransformCube[16];
+float InitialTransformCube2[16];
+
 
 /*green octangle used as upper layer*/
 
@@ -275,6 +279,9 @@ void Display()
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix3);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);	
 
+    MultiplyMatrix(RotationMatrixAnim2, FigureMatrix4, FigureMatrix4);			//rotating cube
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix4);  
+    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);	
 
     /* Disable attributes */
     glDisableVertexAttribArray(vPosition);
@@ -294,8 +301,13 @@ void Display()
 
 void OnIdle()
 {
+    /*GLUT_ELAPSED_TIME depends on the system where the project is running
+     * on some systems it might be slower
+    */	
     float angle = (glutGet(GLUT_ELAPSED_TIME) / 1000.0) * (180.0/M_PI);
     float figureAngle = (glutGet(GLUT_ELAPSED_TIME) /1000.0) * (180.0/M_PI);
+    float figureAngle2 = -(glutGet(GLUT_ELAPSED_TIME) /1000.0) * (180.0/M_PI);
+
 
     /* Time dependent rotation */
     SetRotationY(angle, RotationMatrixAnim);
@@ -316,7 +328,11 @@ void OnIdle()
     MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, FigureMatrix3);
     MultiplyMatrix(TranslateMiddle, FigureMatrix3, FigureMatrix3);
 
-    /* Request redrawing forof window content */  
+    SetRotationY(figureAngle2, RotationMatrixAnim2);
+    MultiplyMatrix(RotationMatrixAnim2, InitialTransformCube2, FigureMatrix4);
+    MultiplyMatrix(TranslateLowest, FigureMatrix4, FigureMatrix4);
+
+    /* Request redrawing for of window content */  
     glutPostRedisplay();
 }
 
@@ -517,9 +533,6 @@ void Initialize(void)
     float tmp[16];
     float tmp_x[16];
     float tmp_z[16];
-   // float x = 0.0; //abstand vom rotationsmittelpunkt
-   // float y = 0.0; //abstand vom rotationsmittelpunkt
-   // float z = 0.0; //up and down, change in height
     
     SetTranslation(0, 0, 0, tmp);
     SetRotationX(-45, tmp_x);
@@ -531,41 +544,42 @@ void Initialize(void)
     MultiplyMatrix(tmp_x, tmp, InitialTransformCube);
     MultiplyMatrix(tmp_z, InitialTransformCube, InitialTransformCube);
 
+    SetTranslation(0, 0, 0, tmp);
+    SetRotationX(-45, tmp_x);
+    SetRotationZ(35, tmp_z);	
 
-    float tmp2[16];
-    float tmp_x2[16];
-    float tmp_z2[16];
-   // float x = 0.0; //abstand vom rotationsmittelpunkt
-   // float y = 0.0; //abstand vom rotationsmittelpunkt
-   // float z = 0.0; //up and down, change in height
-    
-    SetTranslation(0, 0, 0, tmp2);
-    SetRotationX(-45, tmp_x2);
-    SetRotationZ(35, tmp_z2);	
-
-    /* Translate cube to lefthand side */	
+    /* Translate cube to righthand side */	
     SetTranslation(3, -sqrtf(sqrtf(2.0) * 1.0)+2, 0, TranslateRight);
     
-    MultiplyMatrix(tmp_x2, tmp2, InitialTransformCube);
-    MultiplyMatrix(tmp_z2, InitialTransformCube, InitialTransformCube);
+    MultiplyMatrix(tmp_x, tmp, InitialTransformCube);
+    MultiplyMatrix(tmp_z, InitialTransformCube, InitialTransformCube);
 
     float tmp3[16];
     float tmp_x3[16];
-    float tmp_z3[16];
-   // float x = 0.0; //abstand vom rotationsmittelpunkt
-   // float y = 0.0; //abstand vom rotationsmittelpunkt
-   // float z = 0.0; //up and down, change in height
-    
+    float tmp_z3[16];    
     
     SetTranslation(0, 0, 0, tmp3);
     SetRotationX(-45, tmp_x3);
     SetRotationZ(35, tmp_z3);	
 
-    /* Translate cube to lefthand side */	
+    /* Translate cube to middle and scale it */	
     SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-2, 0, TranslateMiddle);
     SetScaling(0.5, 0.5, 0.5, TranslateMiddle);
     MultiplyMatrix(tmp_x3, tmp3, InitialTransformCube);
     MultiplyMatrix(tmp_z3, InitialTransformCube, InitialTransformCube);
+
+    float tmp4[16];
+    float tmp_x4[16];
+    float tmp_z4[16];    
+    
+    SetTranslation(0, 0, 0, tmp4);
+    SetRotationX(45, tmp_x4);
+    SetRotationZ(-35, tmp_z4);	
+
+    /* Translate cube to middle and scale it */	
+    SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-5, 0, TranslateLowest);
+    MultiplyMatrix(tmp_x4, tmp4, InitialTransformCube2);
+    MultiplyMatrix(tmp_z4, InitialTransformCube2, InitialTransformCube2);
 
 
 }

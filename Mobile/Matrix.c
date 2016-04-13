@@ -133,9 +133,9 @@ void SetTranslation(float x, float y, float z, float* result)
 void SetScaling(float x, float y, float z, float* result) {
   float temp[16] = 
   {
-      x,  0.0,  0.0,    1.0,
-      0.0,  y,  0.0,    1.0,
-      0.0,  0.0,  z,    1.0,
+      x,  0.0,  0.0,    0.0,
+      0.0,  y,  0.0,    0.0,
+      0.0,  0.0,  z,    0.0,
       0.0,  0.0,  0.0,  1.0
   };
 
