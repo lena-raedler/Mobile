@@ -24,13 +24,13 @@
 #include "Matrix.h"
 
 /* Define handle to a vertex buffer object */
-GLuint VBO, VBO2;
+GLuint VBO, VBO1, VBO2;
 
 /* Define handle to a color buffer object */
-GLuint CBO, CBO2; 
+GLuint CBO, CBO1, CBO2; 
 
 /* Define handle to an index buffer object */
-GLuint IBO, IBO2;
+GLuint IBO, IBO1, IBO2;
 
 
 /* Indices to vertex attributes; in this case positon and color */ 
@@ -63,98 +63,50 @@ float TranslateLeft[16];
 float TranslateRight[16];
 float TranslateMiddle[16];
 float TranslateLowest[16];
+float TranslateFloor[16];
 float InitialTransformCube[16];
 float InitialTransformCube2[16];
+float FloorMatrix[16];
 
 
 /*green octangle used as upper layer*/
 
 GLfloat vertex_buffer_data3[] = {
-    -3, 1, 3,
-     3, 1, 3,
-     3, 1, -3,
-    -3, 1, -3,
-    -3, 1.1, 3,
-     3, 1.1, 3,
-     3, 1.1, -3,
-    -3, 1.1, -3,
-     4, 1, 0,
-     4, 1.1, 0,
-    -4, 1, 0,
-    -4, 1.1, 0,
-     0, 1, 4,
-     0, 1.1, 4,
-     0, 1, -4,
-     0, 1.1, -4,
+    4.0,0.0,0.0, //0
+    4.0,0.0, -0.5,//1
+    4.0, 1.0, -0.5,//2
+    4.0, 1.0, 0.0,//3
+    -4.0, 0.0, 0.0,//4
+    -4.0, 0.0, -0.5,//5
+    -4.0, 1.0, -0.5,//6
+    -4.0, 1.0, 0.0,//7
 };   
 
 GLfloat color_buffer_data3[] = { /* green color for roof*/
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
-    0,1,0,
+   0.0, 1.0, 0.0,
+   0.0, 1.0, 0.0,
+   0.0, 1.0, 0.0,
+   0.0, 1.0, 0.0,
+   0.0, 1.0, 0.0,
+   0.0, 1.0, 0.0,
+   0.0, 1.0, 0.0,
+   0.0, 1.0, 0.0,
+  
 }; 
 
 GLushort index_buffer_data3[] = { /* Indices of 6*2 triangles (10 sides) */
-    0, 1, 2,
-    2, 3, 0,
-    1, 5, 6,
-    6, 2, 1,
-    7, 6, 5,
-    5, 4, 7,
-    4, 0, 3,
-    3, 7, 4,
-    4, 5, 1,
-    1, 0, 4,
-    3, 2, 6,
-    6, 7, 3,
-    5,6,9,
-    1,2,8,
-    2,6,8,
-    6,8,9,
-    1,5,9,
-    1,8,9,
-    4,5,13,
-    6,7,15,
-    4,7,11,
-    2,14,15,
-    2,6,15,
-    3,14,15,
-    3,7,15,
-    3,7,10,
-    7,10,11,
-    0,10,11,
-    0,4,11,
-    0,12,13,
-    0,4,13,
-    1,12,13,
-    1,5,13,
+    4,3,0,
+    7,3,4,
+    4,5,7,
+    7,5,6,
+    0,1,2,
+    2,0,3,
+    5,1,2,
+    6,2,5,
+    3,7,2,
+    7,6,3,
+    4,0,5,
+    0,1,5,
 };
 
 /* original implementation of RotatingCube */
@@ -196,7 +148,51 @@ GLushort index_buffer_data[] = { /* Indices of 6*2 triangles (6 sides) */
     6, 7, 3,
 };
 
+GLfloat vertex_buffer_data2[] = {
+	9.0, 0.0, -9.0,
+	-9.0, 0.0, -9.0,
+	-9.0, 0.0, 9.0,
+	9.0, 0.0, 9.0,
+	9.0, 18.0, -9.0,
+	-9.0,18.0, -9.0,
+	-9.0, 18.0, 9.0,
+};
+
+GLfloat color_buffer_data2[] = {
+	1.0, 0.1255, 0.451,
+	1.0, 0.1255, 0.451,
+	1.0, 0.1255, 0.451,
+	1.0, 0.1255, 0.451,
+	1.0, 0.0, 0.0,
+	1.0, 0.0, 0.0,
+	0.0, 1.0, 0.0,
+};
+
+GLushort index_buffer_data2[] = {
+	0,1,3,
+	1,2,3,
+	0,4,1,
+	4,5,1,
+	5,1,6,
+	1,6,2,
+};
+
 /*----------------------------------------------------------------*/
+
+
+/*void drawRoom() {
+	glColor3f(0, 0, 1);
+        glPushMatrix();
+        glBegin(GL_QUADS);
+
+        glVertex3f(-18, -18, -18);
+        glVertex3f(18, -18, -18);
+        glVertex3f(18, -18, 18);
+        glVertex3f(-18, -18, 18);
+
+	glEnd();
+        glPopMatrix();
+}*/
 
 
 /******************************************************************
@@ -214,6 +210,8 @@ void Display()
 {
     /* Clear window; color specified in 'Initialize()' */
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    //drawRoom();
 
     glEnableVertexAttribArray(vPosition);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -283,6 +281,21 @@ void Display()
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix4);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);	
 
+
+/*Floor*/
+    glBindBuffer(GL_ARRAY_BUFFER, VBO1);					
+    glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, CBO1);
+    glVertexAttribPointer(vColor, 3, GL_FLOAT,GL_FALSE, 0, 0);   
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO1);
+    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+
+    MultiplyMatrix(RotationMatrixAnim, FloorMatrix, FloorMatrix);
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FloorMatrix);  
+    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+
     /* Disable attributes */
     glDisableVertexAttribArray(vPosition);
     glDisableVertexAttribArray(vColor);   
@@ -315,6 +328,9 @@ void OnIdle()
     /* Apply model rotation; finally move cube down */
     MultiplyMatrix(RotationMatrixAnim, InitialTransform, ModelMatrix);
     MultiplyMatrix(TranslateDown, ModelMatrix, ModelMatrix);
+
+    MultiplyMatrix(RotationMatrixAnim, InitialTransform, FloorMatrix);
+    MultiplyMatrix(TranslateFloor, FloorMatrix, FloorMatrix);
     
     SetRotationY(figureAngle, RotationMatrixAnim);
     MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, FigureMatrix);
@@ -359,6 +375,19 @@ void SetupDataBuffers()
     glBindBuffer(GL_ARRAY_BUFFER, CBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(color_buffer_data3), color_buffer_data3, GL_STATIC_DRAW);
     
+    glGenBuffers(1, &VBO1);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO1);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buffer_data2), vertex_buffer_data2, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &IBO1);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO1);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(index_buffer_data2), index_buffer_data2, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &CBO1);
+    glBindBuffer(GL_ARRAY_BUFFER, CBO1);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(color_buffer_data2), color_buffer_data2, GL_STATIC_DRAW);
+    
+
     glGenBuffers(1, &VBO2);
     glBindBuffer(GL_ARRAY_BUFFER, VBO2);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buffer_data), vertex_buffer_data, GL_STATIC_DRAW);
@@ -436,8 +465,8 @@ void CreateShaderProgram()
     }
 
     /* Load shader code from file */
-    VertexShaderString = LoadShader("vertexshader.vs");
-    FragmentShaderString = LoadShader("fragmentshader.fs");
+    VertexShaderString = LoadShader("shaders/vertexshader.vs");
+    FragmentShaderString = LoadShader("shaders/fragmentshader.fs");
 
     /* Separately add vertex and fragment shader to program */
     AddShader(ShaderProgram, VertexShaderString, GL_VERTEX_SHADER);
@@ -505,6 +534,7 @@ void Initialize(void)
     SetIdentityMatrix(ViewMatrix);
     SetIdentityMatrix(ModelMatrix);
     SetIdentityMatrix(FigureMatrix);
+    SetIdentityMatrix(FloorMatrix);
 
     /* Set projection transform */
     float fovy = 45.0;
@@ -514,7 +544,7 @@ void Initialize(void)
     SetPerspectiveMatrix(fovy, aspect, nearPlane, farPlane, ProjectionMatrix);
 
     /* Set viewing transform */
-    float camera_disp = -20.0;
+    float camera_disp = -30.0;
     SetTranslation(0.0, 0.0, camera_disp, ViewMatrix);
 
     /* Translate and rotate cube onto tip */
@@ -581,6 +611,19 @@ void Initialize(void)
     MultiplyMatrix(tmp_x4, tmp4, InitialTransformCube2);
     MultiplyMatrix(tmp_z4, InitialTransformCube2, InitialTransformCube2);
 
+
+    float tmp5[16];
+    float tmp_x5[16];
+    float tmp_z5[16];    
+    
+    SetTranslation(0, 0, 0, tmp5);
+    SetRotationX(0, tmp_x5);
+    SetRotationZ(0, tmp_z5);	
+
+    /* Translation for Floor and walls */	
+    SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-10, 0, TranslateFloor);
+    MultiplyMatrix(tmp_x5, tmp5, InitialTransform);
+    MultiplyMatrix(tmp_z5, InitialTransform, InitialTransform);
 
 }
 
