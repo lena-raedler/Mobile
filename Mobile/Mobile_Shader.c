@@ -22,16 +22,34 @@
 /* Local includes */
 #include "LoadShader.h"
 #include "Matrix.h"
+#include "OBJParser.h"
 
 /* Define handle to a vertex buffer object */
-GLuint VBO, VBO1, VBO2;
+GLuint VBO, VBO1, VBO2, VBOBall, VBOHeli, VBOHeart, VBOWand;
 
 /* Define handle to a color buffer object */
 GLuint CBO, CBO1, CBO2; 
 
 /* Define handle to an index buffer object */
-GLuint IBO, IBO1, IBO2;
+GLuint IBO, IBO1, IBO2, IBOBall, IBOHeli, IBOHeart, IBOWand;
 
+/* Arrays for holding vertex data of the models */
+GLfloat *vertex_buffer_dataBall;
+GLfloat *vertex_buffer_dataHeli;
+GLfloat *vertex_buffer_dataHeart;
+GLfloat *vertex_buffer_dataWand;
+
+/* Arrays for holding indices of the models */
+GLushort *index_buffer_dataBall;
+GLushort *index_buffer_dataHeli;
+GLushort *index_buffer_dataHeart;
+GLushort *index_buffer_dataWand;
+
+/* Structures for loading of OBJ data */
+obj_scene_data dataBall;
+obj_scene_data dataHeli;
+obj_scene_data dataHeart;
+obj_scene_data dataWand;
 
 /* Indices to vertex attributes; in this case positon and color */ 
 enum DataID {vPosition = 0, vColor = 1}; 
@@ -45,10 +63,11 @@ GLuint ShaderProgram;
 float ProjectionMatrix[16]; /* Perspective projection matrix */
 float ViewMatrix[16]; /* Camera view matrix */ 
 float ModelMatrix[16]; /* Model matrix */ 
-float FigureMatrix[16]; /*for the rotating cube*/
-float FigureMatrix2[16]; /*for the second cube */
-float FigureMatrix3[16]; /*for the tiny cube in the middle*/
-float FigureMatrix4[16]; /*for cube hanging on the lowest in the middle*/
+float BallMatrix[16]; /*for the rotating cube - ball.obj*/
+float HelicopterMatrix[16]; /*for the second cube - helicopter */
+float HeartMatrix[16]; /*for the tiny cube in the middle - heart*/
+float WandMatrix[16]; /*for cube hanging on the lowest in the middle - wand*/
+float FloorMatrix[16]; /*for floor and walls*/
 
 /* Transformation matrices for initial position */
 float TranslateOrigin[16];
@@ -58,28 +77,37 @@ float RotateZ[16];
 float InitialTransform[16];
 float RotationMatrix[16];
 float RotationMatrixAnim[16]; /*for the rotating cubes*/
-float RotationMatrixAnim2[16];
-float TranslateLeft[16];
-float TranslateRight[16];
-float TranslateMiddle[16];
-float TranslateLowest[16];
+float RotationMatrixAnim2[16]; /* for cube rotatio the other way round*/
+float TranslateLeft[16]; /*for ballMatrix*/
+float TranslateRight[16]; /*for helicopterMatrix*/
+float TranslateMiddle[16]; /*for heartMatrix*/
+float TranslateLowest[16]; /*for wandMatrix*/
 float TranslateFloor[16];
-float InitialTransformCube[16];
-float InitialTransformCube2[16];
-float FloorMatrix[16];
+float InitialTransformCube[16]; /*for rotating cubes*/
+float InitialTransformHeart[16];
+float InitialTransformCube2[16]; /*for cube rotation the other way round*/
+float RotateFloor[16];
 
+float rotationSpeed = 180.0;
+int switchDirection = 1;
+GLboolean anim = GL_TRUE;
+GLboolean normalMode = GL_TRUE;
+float cameraDisp = -30.0;
+float cameraPosition = 0.0;
+
+/*TODO: rotationMatrix for heli; modulatisieren; 2D-gekröse*/
 
 /*green octangle used as upper layer*/
 
 GLfloat vertex_buffer_data3[] = {
-    4.0,0.0,0.0, //0
-    4.0,0.0, -0.5,//1
-    4.0, 1.0, -0.5,//2
-    4.0, 1.0, 0.0,//3
-    -4.0, 0.0, 0.0,//4
-    -4.0, 0.0, -0.5,//5
-    -4.0, 1.0, -0.5,//6
-    -4.0, 1.0, 0.0,//7
+    4.0,0.0,0.0,
+    4.0,0.0, -0.5,
+    4.0, 1.0, -0.5,
+    4.0, 1.0, 0.0,
+    -4.0, 0.0, 0.0,
+    -4.0, 0.0, -0.5,
+    -4.0, 1.0, -0.5,
+    -4.0, 1.0, 0.0,
 };   
 
 GLfloat color_buffer_data3[] = { /* green color for roof*/
@@ -180,20 +208,6 @@ GLushort index_buffer_data2[] = {
 /*----------------------------------------------------------------*/
 
 
-/*void drawRoom() {
-	glColor3f(0, 0, 1);
-        glPushMatrix();
-        glBegin(GL_QUADS);
-
-        glVertex3f(-18, -18, -18);
-        glVertex3f(18, -18, -18);
-        glVertex3f(18, -18, 18);
-        glVertex3f(-18, -18, 18);
-
-	glEnd();
-        glPopMatrix();
-}*/
-
 
 /******************************************************************
 *
@@ -253,9 +267,6 @@ void Display()
     /* Issue draw command, using indexed triangle list */
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
-    
-    
-
     glBindBuffer(GL_ARRAY_BUFFER, VBO2);					
     glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
@@ -264,23 +275,56 @@ void Display()
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO2);
     glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+	
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBOBall); //object files
+	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	/* Bind buffer with index data of currently active object -- ball */
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOBall);
+	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+
+	MultiplyMatrix(RotationMatrixAnim, BallMatrix, BallMatrix);
+	glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, BallMatrix);  
+	glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBOHeli); //object files
+	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	/* Bind buffer with index data of currently active object -- heli */
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeli);
+	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
     
-    MultiplyMatrix(RotationMatrixAnim, FigureMatrix, FigureMatrix);			//rotating cube
-    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix);  
+	SetScaling(0.5, 0.5, 0.5, HelicopterMatrix);
+	MultiplyMatrix(HelicopterMatrix, TranslateRight, HelicopterMatrix);
+    MultiplyMatrix(RotationMatrixAnim, HelicopterMatrix, HelicopterMatrix);
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, HelicopterMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
-    MultiplyMatrix(RotationMatrixAnim, FigureMatrix2, FigureMatrix2);			//rotating cube
-    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix2);  
+	glBindBuffer(GL_ARRAY_BUFFER, VBOHeart); //object files
+	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	/* Bind buffer with index data of currently active object -- heart */
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeart);
+	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+
+	SetScaling(0.0125, 0.0125, 0.0125, HeartMatrix);
+	MultiplyMatrix(HeartMatrix, TranslateMiddle, HeartMatrix);
+    MultiplyMatrix(RotationMatrixAnim, HeartMatrix, HeartMatrix);
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, HeartMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+    
 
-    MultiplyMatrix(RotationMatrixAnim, FigureMatrix3, FigureMatrix3);			//rotating cube
-    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix3);  
-    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);	
+	glBindBuffer(GL_ARRAY_BUFFER, VBOWand); //object files
+	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-    MultiplyMatrix(RotationMatrixAnim2, FigureMatrix4, FigureMatrix4);			//rotating cube
-    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FigureMatrix4);  
-    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);	
-
+	/* Bind buffer with index data of currently active object -- wand */
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOWand);
+	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+	
+    MultiplyMatrix(RotationMatrixAnim2, WandMatrix, WandMatrix);
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, WandMatrix);  
+    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
 /*Floor*/
     glBindBuffer(GL_ARRAY_BUFFER, VBO1);					
@@ -292,7 +336,7 @@ void Display()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO1);
     glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
 
-    MultiplyMatrix(RotationMatrixAnim, FloorMatrix, FloorMatrix);
+    MultiplyMatrix(RotateFloor, FloorMatrix, FloorMatrix);
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FloorMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
@@ -317,36 +361,40 @@ void OnIdle()
     /*GLUT_ELAPSED_TIME depends on the system where the project is running
      * on some systems it might be slower
     */	
-    float angle = (glutGet(GLUT_ELAPSED_TIME) / 1000.0) * (180.0/M_PI);
-    float figureAngle = (glutGet(GLUT_ELAPSED_TIME) /1000.0) * (180.0/M_PI);
-    float figureAngle2 = -(glutGet(GLUT_ELAPSED_TIME) /1000.0) * (180.0/M_PI);
 
+    float angle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) / 1000.0) * (rotationSpeed/M_PI));
+    float floorAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) / 1000.0) * (0/M_PI));
+    float figureAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) /1000.0) * (rotationSpeed/M_PI));
+    float figureAngle2 = switchDirection*(-(glutGet(GLUT_ELAPSED_TIME) /1000.0) * (rotationSpeed/M_PI));
 
-    /* Time dependent rotation */
-    SetRotationY(angle, RotationMatrixAnim);
+    if(anim) {
+
+	    /* Time dependent rotation */
+	    SetRotationY(angle, RotationMatrixAnim);
+	    SetRotationY(floorAngle, RotateFloor);
+	    SetRotationY(figureAngle, RotationMatrixAnim);
+	    SetRotationY(figureAngle2, RotationMatrixAnim2);
+    }
+
 
     /* Apply model rotation; finally move cube down */
     MultiplyMatrix(RotationMatrixAnim, InitialTransform, ModelMatrix);
     MultiplyMatrix(TranslateDown, ModelMatrix, ModelMatrix);
 
-    MultiplyMatrix(RotationMatrixAnim, InitialTransform, FloorMatrix);
+    MultiplyMatrix(RotateFloor, InitialTransform, FloorMatrix);
     MultiplyMatrix(TranslateFloor, FloorMatrix, FloorMatrix);
     
-    SetRotationY(figureAngle, RotationMatrixAnim);
-    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, FigureMatrix);
-    MultiplyMatrix(TranslateLeft, FigureMatrix, FigureMatrix);
+    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, BallMatrix);
+    MultiplyMatrix(TranslateLeft, BallMatrix, BallMatrix);
 
-    SetRotationY(figureAngle, RotationMatrixAnim);
-    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, FigureMatrix2);
-    MultiplyMatrix(TranslateRight, FigureMatrix2, FigureMatrix2);
+    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, HelicopterMatrix);
+    MultiplyMatrix(TranslateRight, HelicopterMatrix, HelicopterMatrix);
 
-    SetRotationY(figureAngle, RotationMatrixAnim);
-    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, FigureMatrix3);
-    MultiplyMatrix(TranslateMiddle, FigureMatrix3, FigureMatrix3);
+    MultiplyMatrix(RotationMatrixAnim,InitialTransformHeart, HeartMatrix);
+    MultiplyMatrix(TranslateMiddle, HeartMatrix, HeartMatrix);
 
-    SetRotationY(figureAngle2, RotationMatrixAnim2);
-    MultiplyMatrix(RotationMatrixAnim2, InitialTransformCube2, FigureMatrix4);
-    MultiplyMatrix(TranslateLowest, FigureMatrix4, FigureMatrix4);
+    MultiplyMatrix(RotationMatrixAnim2, InitialTransformCube2, WandMatrix);
+    MultiplyMatrix(TranslateLowest, WandMatrix, WandMatrix);
 
     /* Request redrawing for of window content */  
     glutPostRedisplay();
@@ -399,6 +447,47 @@ void SetupDataBuffers()
     glGenBuffers(1, &CBO2);
     glBindBuffer(GL_ARRAY_BUFFER, CBO2);
     glBufferData(GL_ARRAY_BUFFER, sizeof(color_buffer_data), color_buffer_data, GL_STATIC_DRAW);
+
+/******************************************************* -- Ball -- *******************************************************/
+
+	glGenBuffers(1, &VBOBall);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOBall);
+	glBufferData(GL_ARRAY_BUFFER, dataBall.vertex_count*3*sizeof(GLfloat), vertex_buffer_dataBall, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &IBOBall);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOBall);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataBall.face_count*3*sizeof(GLushort), index_buffer_dataBall, GL_STATIC_DRAW);
+
+
+/****************************************************** -- Heli -- ********************************************************/
+
+	glGenBuffers(1, &VBOHeli);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOHeli);
+	glBufferData(GL_ARRAY_BUFFER, dataHeli.vertex_count*3*sizeof(GLfloat), vertex_buffer_dataHeli, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &IBOHeli);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeli);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataHeli.face_count*3*sizeof(GLushort), index_buffer_dataHeli, GL_STATIC_DRAW);
+
+/****************************************************** -- Heart -- ********************************************************/
+
+	glGenBuffers(1, &VBOHeart);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOHeart);
+	glBufferData(GL_ARRAY_BUFFER, dataHeart.vertex_count*3*sizeof(GLfloat), vertex_buffer_dataHeart, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &IBOHeart);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeart);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataHeart.face_count*3*sizeof(GLushort), index_buffer_dataHeart, GL_STATIC_DRAW);
+
+/****************************************************** -- Wand -- *********************************************************/
+
+	glGenBuffers(1, &VBOWand);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOWand);
+	glBufferData(GL_ARRAY_BUFFER, dataWand.vertex_count*3*sizeof(GLfloat), vertex_buffer_dataWand, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &IBOWand);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOWand);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataWand.face_count*3*sizeof(GLushort), index_buffer_dataWand, GL_STATIC_DRAW);
 }
 
 
@@ -515,9 +604,120 @@ void CreateShaderProgram()
 
 void Initialize(void)
 {   
+	int i;
+	int success;
+
+	/* Load first OBJ model */
+	char* filename1 = "models/ball.obj"; 
+	success = parse_obj_scene(&dataBall, filename1);
+
+	if(!success)
+		printf("Could not load ball file. Exiting.\n");
+
+	/*  Copy mesh data from structs into appropriate arrays -- load Ball file */ 
+	int vert = dataBall.vertex_count;
+	int indx = dataBall.face_count;
+
+	vertex_buffer_dataBall = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
+	index_buffer_dataBall = (GLushort*) calloc (indx*3, sizeof(GLushort));
+
+	/* Vertices */
+	for(i=0; i<vert; i++) {
+		vertex_buffer_dataBall[i*3] = (GLfloat)(*dataBall.vertex_list[i]).e[0];
+		vertex_buffer_dataBall[i*3+1] = (GLfloat)(*dataBall.vertex_list[i]).e[1];
+		vertex_buffer_dataBall[i*3+2] = (GLfloat)(*dataBall.vertex_list[i]).e[2];
+	}
+
+	/* Indices */
+	for(i=0; i<indx; i++) {
+		index_buffer_dataBall[i*3] = (GLushort)(*dataBall.face_list[i]).vertex_index[0];
+		index_buffer_dataBall[i*3+1] = (GLushort)(*dataBall.face_list[i]).vertex_index[1];
+		index_buffer_dataBall[i*3+2] = (GLushort)(*dataBall.face_list[i]).vertex_index[2];
+	}
+
+	char* filename2 = "models/heli.obj"; 
+	success = parse_obj_scene(&dataHeli, filename2);
+
+	if(!success)
+		printf("Could not load heli file. Exiting.\n");
+
+	/*  Copy mesh data from structs into appropriate arrays -- load heli file */ 
+	vert = dataHeli.vertex_count;
+	indx = dataHeli.face_count;
+
+	vertex_buffer_dataHeli = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
+	index_buffer_dataHeli = (GLushort*) calloc (indx*3, sizeof(GLushort));
+
+	/* Vertices */
+	for(i=0; i<vert; i++) {
+		vertex_buffer_dataHeli[i*3] = (GLfloat)(*dataHeli.vertex_list[i]).e[0];
+		vertex_buffer_dataHeli[i*3+1] = (GLfloat)(*dataHeli.vertex_list[i]).e[1];
+		vertex_buffer_dataHeli[i*3+2] = (GLfloat)(*dataHeli.vertex_list[i]).e[2];
+	}
+
+	/* Indices */
+	for(i=0; i<indx; i++) {
+		index_buffer_dataHeli[i*3] = (GLushort)(*dataHeli.face_list[i]).vertex_index[0];
+		index_buffer_dataHeli[i*3+1] = (GLushort)(*dataHeli.face_list[i]).vertex_index[1];
+		index_buffer_dataHeli[i*3+2] = (GLushort)(*dataHeli.face_list[i]).vertex_index[2];
+	}
+
+	char* filename3 = "models/Heart.obj"; 
+	success = parse_obj_scene(&dataHeart, filename3);
+
+	if(!success)
+		printf("Could not load heart file. Exiting.\n");
+
+	/*  Copy mesh data from structs into appropriate arrays -- load heart file */ 
+	vert = dataHeart.vertex_count;
+	indx = dataHeart.face_count;
+
+	vertex_buffer_dataHeart = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
+	index_buffer_dataHeart = (GLushort*) calloc (indx*3, sizeof(GLushort));
+
+	/* Vertices */
+	for(i=0; i<vert; i++) {
+		vertex_buffer_dataHeart[i*3] = (GLfloat)(*dataHeart.vertex_list[i]).e[0];
+		vertex_buffer_dataHeart[i*3+1] = (GLfloat)(*dataHeart.vertex_list[i]).e[1];
+		vertex_buffer_dataHeart[i*3+2] = (GLfloat)(*dataHeart.vertex_list[i]).e[2];
+	}
+
+	/* Indices */
+	for(i=0; i<indx; i++) {
+		index_buffer_dataHeart[i*3] = (GLushort)(*dataHeart.face_list[i]).vertex_index[0];
+		index_buffer_dataHeart[i*3+1] = (GLushort)(*dataHeart.face_list[i]).vertex_index[1];
+		index_buffer_dataHeart[i*3+2] = (GLushort)(*dataHeart.face_list[i]).vertex_index[2];
+	}
+
+char* filename4 = "models/ball.obj"; 
+	success = parse_obj_scene(&dataWand, filename4);
+
+	if(!success)
+		printf("Could not load heli file. Exiting.\n");
+
+	/*  Copy mesh data from structs into appropriate arrays -- load heli file */ 
+	vert = dataWand.vertex_count;
+	indx = dataWand.face_count;
+
+	vertex_buffer_dataWand = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
+	index_buffer_dataWand = (GLushort*) calloc (indx*3, sizeof(GLushort));
+
+	/* Vertices */
+	for(i=0; i<vert; i++) {
+		vertex_buffer_dataWand[i*3] = (GLfloat)(*dataWand.vertex_list[i]).e[0];
+		vertex_buffer_dataWand[i*3+1] = (GLfloat)(*dataWand.vertex_list[i]).e[1];
+		vertex_buffer_dataWand[i*3+2] = (GLfloat)(*dataWand.vertex_list[i]).e[2];
+	}
+
+	/* Indices */
+	for(i=0; i<indx; i++) {
+		index_buffer_dataWand[i*3] = (GLushort)(*dataWand.face_list[i]).vertex_index[0];
+		index_buffer_dataWand[i*3+1] = (GLushort)(*dataWand.face_list[i]).vertex_index[1];
+		index_buffer_dataWand[i*3+2] = (GLushort)(*dataWand.face_list[i]).vertex_index[2];
+	}
 
     /* Set background (clear) color to black */ 
-    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClearColor(1.0, 1.0, 1.0, 1.0);
 
     /* Enable depth testing */
     glEnable(GL_DEPTH_TEST);
@@ -533,7 +733,7 @@ void Initialize(void)
     SetIdentityMatrix(ProjectionMatrix);
     SetIdentityMatrix(ViewMatrix);
     SetIdentityMatrix(ModelMatrix);
-    SetIdentityMatrix(FigureMatrix);
+    SetIdentityMatrix(BallMatrix);
     SetIdentityMatrix(FloorMatrix);
 
     /* Set projection transform */
@@ -544,8 +744,7 @@ void Initialize(void)
     SetPerspectiveMatrix(fovy, aspect, nearPlane, farPlane, ProjectionMatrix);
 
     /* Set viewing transform */
-    float camera_disp = -30.0;
-    SetTranslation(0.0, 0.0, camera_disp, ViewMatrix);
+    SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
 
     /* Translate and rotate cube onto tip */
     SetTranslation(0, 0, 0, TranslateOrigin);
@@ -565,21 +764,21 @@ void Initialize(void)
     float tmp_z[16];
     
     SetTranslation(0, 0, 0, tmp);
-    SetRotationX(-45, tmp_x);
-    SetRotationZ(35, tmp_z);	
+    SetRotationX(0, tmp_x);
+    SetRotationZ(45, tmp_z);	
 
-    /* Translate cube to lefthand side */	
+    /* Translate cube to lefthand side -- ball */	
     SetTranslation(-3, -sqrtf(sqrtf(2.0) * 1.0)+2, 0, TranslateLeft);
     
     MultiplyMatrix(tmp_x, tmp, InitialTransformCube);
     MultiplyMatrix(tmp_z, InitialTransformCube, InitialTransformCube);
 
     SetTranslation(0, 0, 0, tmp);
-    SetRotationX(-45, tmp_x);
-    SetRotationZ(35, tmp_z);	
+    SetRotationX(0, tmp_x);
+    SetRotationZ(45, tmp_z);	
 
-    /* Translate cube to righthand side */	
-    SetTranslation(3, -sqrtf(sqrtf(2.0) * 1.0)+2, 0, TranslateRight);
+    /* Translate cube to righthand side -- helicopter */	
+    SetTranslation(8, -sqrtf(sqrtf(2.0) * 1.0)+0, 0, TranslateRight);
     
     MultiplyMatrix(tmp_x, tmp, InitialTransformCube);
     MultiplyMatrix(tmp_z, InitialTransformCube, InitialTransformCube);
@@ -589,14 +788,13 @@ void Initialize(void)
     float tmp_z3[16];    
     
     SetTranslation(0, 0, 0, tmp3);
-    SetRotationX(-45, tmp_x3);
-    SetRotationZ(35, tmp_z3);	
+    SetRotationX(0, tmp_x3);
+    SetRotationZ(0, tmp_z3);	
 
-    /* Translate cube to middle and scale it */	
-    SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-2, 0, TranslateMiddle);
-    SetScaling(0.5, 0.5, 0.5, TranslateMiddle);
-    MultiplyMatrix(tmp_x3, tmp3, InitialTransformCube);
-    MultiplyMatrix(tmp_z3, InitialTransformCube, InitialTransformCube);
+    /* Translate cube to middle and scale it -- heart */	
+    SetTranslation(-150, -sqrtf(sqrtf(2.0) * 1.0)-250, 0, TranslateMiddle);
+    MultiplyMatrix(tmp_x3, tmp3, InitialTransformHeart);
+    MultiplyMatrix(tmp_z3, InitialTransformHeart, InitialTransformHeart);
 
     float tmp4[16];
     float tmp_x4[16];
@@ -627,6 +825,177 @@ void Initialize(void)
 
 }
 
+
+/******************************************************************
+*
+* Keyboard
+*
+* Function to be called on key press in window; set by
+* glutKeyboardFunc(); x and y specify mouse position on keypress;
+* not used in this example 
+*
+*******************************************************************/
+
+void Keyboard(unsigned char key, int x, int y)   
+{
+	if(key == '1') {
+    	normalMode = GL_TRUE;
+		anim = GL_TRUE;
+		switchDirection = 1;
+		rotationSpeed = 180.0f;
+		cameraDisp = -30.0;
+		cameraPosition = 0.0;
+		SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+ 	}
+ 	else if(key == '2') {
+    	normalMode = GL_FALSE;
+		anim = GL_TRUE;
+		switchDirection = 1;
+		rotationSpeed = 180.0f;
+		cameraDisp = -30.0;
+		cameraPosition = 0.0;
+		SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+	}
+ 
+	if(normalMode) {
+		switch( key ) 
+		{
+		/* Reset initial rotation of object */
+		case 'o':
+		   /* SetIdentityMatrix(RotationMatrixAnimX);
+			SetIdentityMatrix(RotationMatrixAnimY);
+			SetIdentityMatrix(RotationMatrixAnimZ);
+			angleX = 0.0;
+			angleY = 0.0;
+			angleZ = 0.0;*/
+			anim = GL_TRUE;
+			switchDirection = 1;
+			rotationSpeed = 180.0f;
+			cameraDisp = -30.0;
+			cameraPosition = 0.0;
+			SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+			break;
+		
+		    case 's':
+			switchDirection *= -1;
+			break;
+
+		case 'p':
+			if(anim) {
+			anim = GL_FALSE;
+			}
+			else {
+			anim = GL_TRUE;
+			}
+			break;
+
+		    case '+':
+		        if(rotationSpeed < 500.0f) {
+					rotationSpeed+=10;
+				}
+			break;
+		case '-':
+			if(rotationSpeed > 10.0f) {
+				rotationSpeed-=10;
+			}
+			else {
+			rotationSpeed = 0.0f;
+			}
+			break;
+			
+		case 'q': case 'Q':  
+			exit(0);    
+			break;
+		}
+	}
+	else {
+		switch(key) {
+		case 'w':
+			if(cameraDisp < -10) {
+				cameraDisp += 2.5;
+				SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+			}
+			break;
+
+		case 's':
+			if(cameraDisp > -40) {
+				cameraDisp -= 2.5;
+				SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+			}
+			break;
+
+		case 'a':
+			if(cameraPosition < 20) {
+				cameraPosition += 2.5;
+				SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+			}
+			break;
+
+		case 'd':
+			if(cameraPosition > -20) {
+				cameraPosition -= 2.5;	
+				SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+			}
+			break;
+
+		case 'o':
+			anim = GL_TRUE;
+			switchDirection = 1;
+			rotationSpeed = 180.0f;
+			cameraDisp = -30.0;
+			cameraPosition = 0.0;
+			SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+			break;
+
+		case 'q': case 'Q':  
+			exit(0);    
+			break;
+		}
+	}
+
+    glutPostRedisplay();
+}
+
+/******************************************************************
+*
+* Mouse
+*
+* Function is called on mouse button press; has been seta
+* with glutMouseFunc(), x and y specify mouse coordinates,
+* but are not used here.
+*
+*******************************************************************/
+
+void Mouse(int button, int state, int x, int y) 
+{
+
+	if(!normalMode) {
+		if(state == GLUT_DOWN) {
+		  /* Depending on button pressed, set rotation axis,
+		   * turn on animation */
+		    switch(button) {
+			case GLUT_LEFT_BUTTON:    
+			    if(rotationSpeed < 500.0f) {
+					rotationSpeed+=10;
+				}
+			break;
+
+			case GLUT_MIDDLE_BUTTON:  
+	  	        switchDirection *= -1;
+			    break;
+		
+			case GLUT_RIGHT_BUTTON: 
+			    if(rotationSpeed > 10.0f) {
+					rotationSpeed-=10;
+				}
+				else {
+				rotationSpeed = 0.0f;
+				}
+			break;
+			}
+		}
+	}
+}
 
 /******************************************************************
 *
@@ -661,6 +1030,8 @@ int main(int argc, char** argv)
      * handing control over to GLUT */
     glutIdleFunc(OnIdle);
     glutDisplayFunc(Display);
+    glutKeyboardFunc(Keyboard);
+	glutMouseFunc(Mouse);
     glutMainLoop();
 
     /* ISO C requires main to return int */
