@@ -25,13 +25,13 @@
 #include "OBJParser.h"
 
 /* Define handle to a vertex buffer object */
-GLuint VBO, VBO1, VBO2, VBOBall, VBOHeli, VBOHeart, VBOWand;
+GLuint VBO, VBO1, VBOBall, VBOHeli, VBOHeart, VBOWand;
 
 /* Define handle to a color buffer object */
-GLuint CBO, CBO1, CBO2; 
+GLuint CBO, CBO1; 
 
 /* Define handle to an index buffer object */
-GLuint IBO, IBO1, IBO2, IBOBall, IBOHeli, IBOHeart, IBOWand;
+GLuint IBO, IBO1, IBOBall, IBOHeli, IBOHeart, IBOWand;
 
 /* Arrays for holding vertex data of the models */
 GLfloat *vertex_buffer_dataBall;
@@ -62,16 +62,19 @@ GLuint ShaderProgram;
 
 float ProjectionMatrix[16]; /* Perspective projection matrix */
 float ViewMatrix[16]; /* Camera view matrix */ 
-float ModelMatrix[16]; /* Model matrix */ 
+float ModelMatrix[16]; /* Big Green Bar matrix */ 
 float BallMatrix[16]; /*for the rotating cube - ball.obj*/
 float HelicopterMatrix[16]; /*for the second cube - helicopter */
 float HeartMatrix[16]; /*for the tiny cube in the middle - heart*/
 float WandMatrix[16]; /*for cube hanging on the lowest in the middle - wand*/
 float FloorMatrix[16]; /*for floor and walls*/
 
+/*float LeftBarMatrix[16];
+float RightBarMatrix[16];*/
+
 /* Transformation matrices for initial position */
 float TranslateOrigin[16];
-float TranslateDown[16];
+float TranslateDown[16]; /*used for bar*/
 float RotateX[16];
 float RotateZ[16];
 float InitialTransform[16];
@@ -84,20 +87,23 @@ float TranslateMiddle[16]; /*for heartMatrix*/
 float TranslateLowest[16]; /*for wandMatrix*/
 float TranslateFloor[16];
 float InitialTransformCube[16]; /*for rotating cubes*/
+float InitialTransformHeli[16];
 float InitialTransformHeart[16];
 float InitialTransformCube2[16]; /*for cube rotation the other way round*/
 float RotateFloor[16];
+float RotateHeli[16]; /*rotation Matrix for helicopter object*/
 
 float rotationSpeed = 180.0;
+float rotateWalls = 3000.0; //automatic cameramode
+float stopIt = 1.0;
 int switchDirection = 1;
 GLboolean anim = GL_TRUE;
 GLboolean normalMode = GL_TRUE;
+GLboolean automaticMode = GL_TRUE;
 float cameraDisp = -30.0;
 float cameraPosition = 0.0;
 
-/*TODO: rotationMatrix for heli; modulatisieren*/
-
-/*green octangle used as upper layer*/
+/*green bar used as upper layer*/
 
 GLfloat vertex_buffer_data3[] = {
     4.0,0.0,0.0,
@@ -110,7 +116,7 @@ GLfloat vertex_buffer_data3[] = {
     -4.0, 1.0, 0.0,
 };   
 
-GLfloat color_buffer_data3[] = { /* green color for roof*/
+GLfloat color_buffer_data3[] = { /* green color for bar*/
    0.0, 1.0, 0.0,
    0.0, 1.0, 0.0,
    0.0, 1.0, 0.0,
@@ -122,7 +128,7 @@ GLfloat color_buffer_data3[] = { /* green color for roof*/
   
 }; 
 
-GLushort index_buffer_data3[] = { /* Indices of 6*2 triangles (10 sides) */
+GLushort index_buffer_data3[] = { /* Indices for the triangles */
     4,3,0,
     7,3,4,
     4,5,7,
@@ -137,46 +143,7 @@ GLushort index_buffer_data3[] = { /* Indices of 6*2 triangles (10 sides) */
     0,1,5,
 };
 
-/* original implementation of RotatingCube */
-
-GLfloat vertex_buffer_data[] = { /* 8 cube vertices XYZ */
-    -1.0, -1.0,  1.0,
-     1.0, -1.0,  1.0,
-     1.0,  1.0,  1.0,
-    -1.0,  1.0,  1.0,
-    -1.0, -1.0, -1.0,
-     1.0, -1.0, -1.0,
-     1.0,  1.0, -1.0,
-    -1.0,  1.0, -1.0,
-};   
-
-GLfloat color_buffer_data[] = { /* RGB color values for 8 vertices */
-    0.0, 0.0, 1.0,
-    1.0, 0.0, 1.0,
-    1.0, 1.0, 1.0,
-    0.0, 1.0, 1.0,
-    0.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    1.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-}; 
-
-GLushort index_buffer_data[] = { /* Indices of 6*2 triangles (6 sides) */
-    0, 1, 2,
-    2, 3, 0,
-    1, 5, 6,
-    6, 2, 1,
-    7, 6, 5,
-    5, 4, 7,
-    4, 0, 3,
-    3, 7, 4,
-    4, 5, 1,
-    1, 0, 4,
-    3, 2, 6,
-    6, 7, 3,
-};
-
-GLfloat vertex_buffer_data2[] = {
+GLfloat vertex_buffer_data2[] = { //floor
 	9.0, 0.0, -9.0,
 	-9.0, 0.0, -9.0,
 	-9.0, 0.0, 9.0,
@@ -187,13 +154,13 @@ GLfloat vertex_buffer_data2[] = {
 };
 
 GLfloat color_buffer_data2[] = {
-	1.0, 0.1255, 0.451,
-	1.0, 0.1255, 0.451,
-	1.0, 0.1255, 0.451,
-	1.0, 0.1255, 0.451,
-	1.0, 0.0, 0.0,
-	1.0, 0.0, 0.0,
-	0.0, 1.0, 0.0,
+	0.0, 0.1255, 1.451,
+	0.0, 1.1255, 0.451,
+	0.0, 0.1255, 1.451,
+	0.0, 0.1255, 1.451,
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
 };
 
 GLushort index_buffer_data2[] = {
@@ -220,12 +187,20 @@ GLushort index_buffer_data2[] = {
 *
 *******************************************************************/
 
+/*function that draws vertical lines to connect objects in the mobile*/
+void drawVerticalLine(float x, float position, float length){
+	
+	glBegin(GL_LINES);
+		glLineWidth(2.5);
+		glVertex3f(x, position, 0.0);
+		glVertex3f(x, length, 0);
+	glEnd();
+}
+
 void Display()
 {
     /* Clear window; color specified in 'Initialize()' */
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
-    //drawRoom();
 
     glEnableVertexAttribArray(vPosition);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -263,19 +238,13 @@ void Display()
         exit(-1);
     }
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, ModelMatrix);  
-
+	drawVerticalLine(0, 0, 1.5);
+	drawVerticalLine(-3, -sqrtf(sqrtf(2.0)*1.0)+2, -2.5); //ball
+	drawVerticalLine(3.5, -sqrtf(sqrtf(2.0)*1.0)+2, -2.5); //heli
+	drawVerticalLine(0, 0, -4); //heart
+	drawVerticalLine(0, -5.2, -9.1); //ball (we wanted to add a wand form harry potter but it always gave us a segmentation fault
     /* Issue draw command, using indexed triangle list */
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO2);					
-    glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, CBO2);
-    glVertexAttribPointer(vColor, 3, GL_FLOAT,GL_FALSE, 0, 0);   
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO2);
-    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
-	
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBOBall); //object files
 	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -295,9 +264,7 @@ void Display()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeli);
 	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
     
-	SetScaling(0.5, 0.5, 0.5, HelicopterMatrix);
-	MultiplyMatrix(HelicopterMatrix, TranslateRight, HelicopterMatrix);
-    MultiplyMatrix(RotationMatrixAnim, HelicopterMatrix, HelicopterMatrix);
+    MultiplyMatrix(RotateHeli, HelicopterMatrix, HelicopterMatrix);
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, HelicopterMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
@@ -340,6 +307,8 @@ void Display()
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FloorMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
+
+
     /* Disable attributes */
     glDisableVertexAttribArray(vPosition);
     glDisableVertexAttribArray(vColor);   
@@ -363,8 +332,8 @@ void OnIdle()
     */	
 
     float angle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) / 1000.0) * (rotationSpeed/M_PI));
-    float floorAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) / 1000.0) * (0/M_PI));
-    float figureAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) /1000.0) * (rotationSpeed/M_PI));
+    float floorAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) / rotateWalls) * (180/M_PI))*stopIt;
+    float heliAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) /1000.0) * (rotationSpeed/M_PI));
     float figureAngle2 = switchDirection*(-(glutGet(GLUT_ELAPSED_TIME) /1000.0) * (rotationSpeed/M_PI));
 
     if(anim) {
@@ -372,7 +341,7 @@ void OnIdle()
 	    /* Time dependent rotation */
 	    SetRotationY(angle, RotationMatrixAnim);
 	    SetRotationY(floorAngle, RotateFloor);
-	    SetRotationY(figureAngle, RotationMatrixAnim);
+		SetRotationY(heliAngle, RotateHeli);
 	    SetRotationY(figureAngle2, RotationMatrixAnim2);
     }
 
@@ -386,8 +355,9 @@ void OnIdle()
     
     MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, BallMatrix);
     MultiplyMatrix(TranslateLeft, BallMatrix, BallMatrix);
-
-    MultiplyMatrix(RotationMatrixAnim,InitialTransformCube, HelicopterMatrix);
+    
+	MultiplyMatrix(RotateHeli,InitialTransformHeli, HelicopterMatrix);
+	MultiplyMatrix(RotationMatrixAnim, InitialTransformHeli, HelicopterMatrix);
     MultiplyMatrix(TranslateRight, HelicopterMatrix, HelicopterMatrix);
 
     MultiplyMatrix(RotationMatrixAnim,InitialTransformHeart, HeartMatrix);
@@ -435,18 +405,6 @@ void SetupDataBuffers()
     glBindBuffer(GL_ARRAY_BUFFER, CBO1);
     glBufferData(GL_ARRAY_BUFFER, sizeof(color_buffer_data2), color_buffer_data2, GL_STATIC_DRAW);
     
-
-    glGenBuffers(1, &VBO2);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO2);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buffer_data), vertex_buffer_data, GL_STATIC_DRAW);
-    
-    glGenBuffers(1, &IBO2);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO2);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(index_buffer_data), index_buffer_data, GL_STATIC_DRAW);
-    
-    glGenBuffers(1, &CBO2);
-    glBindBuffer(GL_ARRAY_BUFFER, CBO2);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(color_buffer_data), color_buffer_data, GL_STATIC_DRAW);
 
 /******************************************************* -- Ball -- *******************************************************/
 
@@ -752,62 +710,61 @@ char* filename4 = "models/ball.obj";
     SetRotationZ(0, RotateZ);	
 
     /* Translate down */	
-    SetTranslation(0, sqrtf(sqrtf(90.0) * 1.0), 0, TranslateDown);
+    SetTranslation(0, sqrtf(sqrtf(90)+1), 0, TranslateDown);
 
     
     /* Initial transformation matrix */
     MultiplyMatrix(RotateX, TranslateOrigin, InitialTransform);
     MultiplyMatrix(RotateZ, InitialTransform, InitialTransform);
 
+	/**********************************************************************
+	* tmp variables are needed to translate all objects to the center	  *
+	* instead of defining more global variables we decided to create	  *
+	* them locally in this scope										  *
+	**********************************************************************/
+
     float tmp[16];
     float tmp_x[16];
-    float tmp_z[16];
     
     SetTranslation(0, 0, 0, tmp);
-    SetRotationX(0, tmp_x);
-    SetRotationZ(45, tmp_z);	
+    SetRotationX(180, tmp_x);	
 
     /* Translate cube to lefthand side -- ball */	
     SetTranslation(-3, -sqrtf(sqrtf(2.0) * 1.0)+2, 0, TranslateLeft);
     
     MultiplyMatrix(tmp_x, tmp, InitialTransformCube);
-    MultiplyMatrix(tmp_z, InitialTransformCube, InitialTransformCube);
 
-    SetTranslation(0, 0, 0, tmp);
-    SetRotationX(0, tmp_x);
-    SetRotationZ(45, tmp_z);	
-
-    /* Translate cube to righthand side -- helicopter */	
-    SetTranslation(8, -sqrtf(sqrtf(2.0) * 1.0)+0, 0, TranslateRight);
+    float tmp1[16];
+    float tmp_x1[16];
     
-    MultiplyMatrix(tmp_x, tmp, InitialTransformCube);
-    MultiplyMatrix(tmp_z, InitialTransformCube, InitialTransformCube);
+    SetTranslation(0, 0, 0, tmp1);
+    SetRotationX(0, tmp_x1);	
+
+    /*Scale and Translate object to righthand side -- helicopter */	
+	SetScaling(0.5, 0.5, 0.5, tmp1);
+    SetTranslation(3.5, -sqrtf(sqrtf(2.0) * 1.0)+0, 0, TranslateRight);
+	MultiplyMatrix(HelicopterMatrix, TranslateRight, HelicopterMatrix);
+    MultiplyMatrix(tmp_x1, tmp1, InitialTransformHeli);
 
     float tmp3[16];
-    float tmp_x3[16];
-    float tmp_z3[16];    
+    float tmp_x3[16];   
     
     SetTranslation(0, 0, 0, tmp3);
-    SetRotationX(0, tmp_x3);
-    SetRotationZ(0, tmp_z3);	
+    SetRotationX(0, tmp_x3);	
 
     /* Translate cube to middle and scale it -- heart */	
     SetTranslation(-150, -sqrtf(sqrtf(2.0) * 1.0)-250, 0, TranslateMiddle);
     MultiplyMatrix(tmp_x3, tmp3, InitialTransformHeart);
-    MultiplyMatrix(tmp_z3, InitialTransformHeart, InitialTransformHeart);
 
     float tmp4[16];
-    float tmp_x4[16];
-    float tmp_z4[16];    
+    float tmp_x4[16];    
     
     SetTranslation(0, 0, 0, tmp4);
-    SetRotationX(45, tmp_x4);
-    SetRotationZ(-35, tmp_z4);	
+    SetRotationX(180, tmp_x4);	
 
     /* Translate cube to middle and scale it */	
     SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-5, 0, TranslateLowest);
     MultiplyMatrix(tmp_x4, tmp4, InitialTransformCube2);
-    MultiplyMatrix(tmp_z4, InitialTransformCube2, InitialTransformCube2);
 
 
     float tmp5[16];
@@ -828,7 +785,7 @@ char* filename4 = "models/ball.obj";
 
 /******************************************************************
 *
-* Keyboard
+* Keyboard - changed the keys in the example given in the Prosemiar
 *
 * Function to be called on key press in window; set by
 * glutKeyboardFunc(); x and y specify mouse position on keypress;
@@ -838,8 +795,21 @@ char* filename4 = "models/ball.obj";
 
 void Keyboard(unsigned char key, int x, int y)   
 {
-	if(key == '1') {
+	if(key == 'n') {
+		automaticMode = GL_TRUE;
+		anim = GL_TRUE;
+		stopIt = 1.0;
+		rotateWalls = 1200.0;
+		switchDirection = 1;
+		rotationSpeed = 180.0f;
+		cameraDisp = -30.0;
+		cameraPosition = 0.0;
+		SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
+	}
+	else if(key == '1') {
     	normalMode = GL_TRUE;
+		automaticMode = GL_FALSE;
+		stopIt = 0.0;
 		anim = GL_TRUE;
 		switchDirection = 1;
 		rotationSpeed = 180.0f;
@@ -849,6 +819,8 @@ void Keyboard(unsigned char key, int x, int y)
  	}
  	else if(key == '2') {
     	normalMode = GL_FALSE;
+		automaticMode = GL_FALSE;
+		stopIt = 0.0;
 		anim = GL_TRUE;
 		switchDirection = 1;
 		rotationSpeed = 180.0f;
@@ -857,17 +829,11 @@ void Keyboard(unsigned char key, int x, int y)
 		SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
 	}
  
-	if(normalMode) {
+	if(normalMode && (!automaticMode)) {
 		switch( key ) 
 		{
 		/* Reset initial rotation of object */
 		case 'o':
-		   /* SetIdentityMatrix(RotationMatrixAnimX);
-			SetIdentityMatrix(RotationMatrixAnimY);
-			SetIdentityMatrix(RotationMatrixAnimZ);
-			angleX = 0.0;
-			angleY = 0.0;
-			angleZ = 0.0;*/
 			anim = GL_TRUE;
 			switchDirection = 1;
 			rotationSpeed = 180.0f;
@@ -902,13 +868,17 @@ void Keyboard(unsigned char key, int x, int y)
 			rotationSpeed = 0.0f;
 			}
 			break;
-			
+
+		case 'n':
+			automaticMode = GL_TRUE;
+			break;
+
 		case 'q': case 'Q':  
 			exit(0);    
 			break;
 		}
 	}
-	else {
+	else if((!normalMode) && (!automaticMode)) {
 		switch(key) {
 		case 'w':
 			if(cameraDisp < -10) {
@@ -947,6 +917,10 @@ void Keyboard(unsigned char key, int x, int y)
 			SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
 			break;
 
+		case 'n':
+			automaticMode = GL_TRUE;
+			break;
+
 		case 'q': case 'Q':  
 			exit(0);    
 			break;
@@ -958,7 +932,7 @@ void Keyboard(unsigned char key, int x, int y)
 
 /******************************************************************
 *
-* Mouse
+* Mouse - was given to us in the Proseminar
 *
 * Function is called on mouse button press; has been seta
 * with glutMouseFunc(), x and y specify mouse coordinates,

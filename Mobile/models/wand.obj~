@@ -1,6 +1,7 @@
 # Blender v2.71 (sub 0) OBJ File: 'Staff - Harry Potter.blend'
-
-#o Cylinder
+# www.blender.org
+mtllib Staff - Harry Potter.mtl
+o Cylinder
 v 0.031521 6.714706 -0.603710
 v 0.035042 6.717063 -0.597759
 v 0.037502 6.720134 -0.591642
@@ -1057,7 +1058,8 @@ v 0.001185 4.152479 0.714306
 v 0.002751 4.152617 0.714670
 v 0.004212 4.152884 0.715302
 v 0.005511 4.153271 0.716179
-
+usemtl Material1
+s 1
 f 219 218 167 166
 f 216 215 170 169
 f 236 237 212 213
