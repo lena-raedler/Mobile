@@ -28,30 +28,30 @@
 #include "OBJParser.h"
 
 /* Define handle to a vertex buffer object */
-GLuint VBO, VBO1, VBOBall, VBOHeli, VBOHeart, VBOWand;
+GLuint VBO, VBO1, VBOBall, VBOHeli, VBOBB8, VBOWand;
 
 /* Define handle to a color buffer object */
 GLuint CBO, CBO1; 
 
 /* Define handle to an index buffer object */
-GLuint IBO, IBO1, IBOBall, IBOHeli, IBOHeart, IBOWand;
+GLuint IBO, IBO1, IBOBall, IBOHeli, IBOBB8, IBOWand;
 
 /* Arrays for holding vertex data of the models */
 GLfloat *vertex_buffer_dataBall;
 GLfloat *vertex_buffer_dataHeli;
-GLfloat *vertex_buffer_dataHeart;
+GLfloat *vertex_buffer_dataBB8;
 GLfloat *vertex_buffer_dataWand;
 
 /* Arrays for holding indices of the models */
 GLushort *index_buffer_dataBall;
 GLushort *index_buffer_dataHeli;
-GLushort *index_buffer_dataHeart;
+GLushort *index_buffer_dataBB8;
 GLushort *index_buffer_dataWand;
 
 /* Structures for loading of OBJ data */
 obj_scene_data dataBall;
 obj_scene_data dataHeli;
-obj_scene_data dataHeart;
+obj_scene_data dataBB8;
 obj_scene_data dataWand;
 
 /* Indices to vertex attributes; in this case positon and color */ 
@@ -65,10 +65,10 @@ GLuint ShaderProgram;
 
 float ProjectionMatrix[16]; /* Perspective projection matrix */
 float ViewMatrix[16]; /* Camera view matrix */ 
-float ModelMatrix[16]; /* Big Green Bar matrix */ 
+float ModelMatrix[16]; /* Big yellow Bar matrix */ 
 float BallMatrix[16]; /*for the rotating cube - ball.obj*/
 float HelicopterMatrix[16]; /*for the second cube - helicopter */
-float HeartMatrix[16]; /*for the tiny cube in the middle - heart*/
+float BB8Matrix[16]; /*for the tiny cube in the middle - BB8*/
 float WandMatrix[16]; /*for cube hanging on the lowest in the middle - wand*/
 float FloorMatrix[16]; /*for floor and walls*/
 
@@ -86,15 +86,16 @@ float RotationMatrixAnim[16]; /*for the rotating cubes*/
 float RotationMatrixAnim2[16]; /* for cube rotatio the other way round*/
 float TranslateLeft[16]; /*for ballMatrix*/
 float TranslateRight[16]; /*for helicopterMatrix*/
-float TranslateMiddle[16]; /*for heartMatrix*/
+float TranslateMiddle[16]; /*for BB8Matrix*/
 float TranslateLowest[16]; /*for wandMatrix*/
 float TranslateFloor[16];
 float InitialTransformCube[16]; /*for rotating cubes*/
 float InitialTransformHeli[16];
-float InitialTransformHeart[16];
+float InitialTransformBB8[16];
 float InitialTransformCube2[16]; /*for cube rotation the other way round*/
 float RotateFloor[16];
 float RotateHeli[16]; /*rotation Matrix for helicopter object*/
+float RotateBB8[16]; /*rotation Matrix for bb8 object*/
 
 float rotationSpeed = 180.0;
 float rotateWalls = 3000.0; //automatic cameramode
@@ -106,7 +107,23 @@ GLboolean automaticMode = GL_TRUE;
 float cameraDisp = -30.0;
 float cameraPosition = 0.0;
 
-/*green bar used as upper layer*/
+struct LightSource {
+	float ambient_color[3];
+	float diffuse_color[3];
+	float specular_color[3];
+	float position[3];
+} light, objectLight;
+
+struct Material {
+	float ambient_color[3];
+	float diffuse_color[3];
+	float specular_color[3];
+	float specular_shininess;
+} material, objectMaterial;
+
+
+
+/*yellow bar used as upper layer*/
 
 GLfloat vertex_buffer_data3[] = {
     4.0,0.0,0.0,
@@ -119,7 +136,7 @@ GLfloat vertex_buffer_data3[] = {
     -4.0, 1.0, 0.0,
 };   
 
-GLfloat color_buffer_data3[] = { /* green color for bar*/
+GLfloat color_buffer_data3[] = { /* yellow color for bar*/
    0.0, 1.0, 0.0,
    0.0, 1.0, 0.0,
    0.0, 1.0, 0.0,
@@ -240,14 +257,80 @@ void Display()
         fprintf(stderr, "Could not bind uniform ModelMatrix\n");
         exit(-1);
     }
-    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, ModelMatrix);  
+    
+	/* for lightning */
+	//first light source -- background light
+	GLint l1AmbientUniform = glGetUniformLocation(ShaderProgram, "light.ambient_color"); //load in ambient color (from shader)
+	glUniformMatrix4fv(l1AmbientUniform, 1, GL_TRUE, light.ambient_color); //load in ambient color (from struct in program)
+
+	GLint l1DiffuseUniform = glGetUniformLocation(ShaderProgram, "light.diffuse_color");
+	glUniform3fv(l1DiffuseUniform, 1, light.diffuse_color);
+	GLint l1SpecularUniform = glGetUniformLocation(ShaderProgram, "light.specular_color");
+	glUniform3fv(l1SpecularUniform, 1, light.specular_color);
+	GLint position1Uniform = glGetUniformLocation(ShaderProgram, "light.position");
+	glUniform3fv(position1Uniform, 1, light.position);
+	GLint light1PosUniform = glGetUniformLocation(ShaderProgram, "lightPosition"); 
+	glUniform3fv(light1PosUniform, 1, light.position);
+
+	//for light source 1
+	GLint m1AmbientUniform = glGetUniformLocation(ShaderProgram, "material.ambient_color");
+	glUniformMatrix4fv(m1AmbientUniform, 1, GL_TRUE, material.ambient_color);
+	GLint m1DiffuseUniform = glGetUniformLocation(ShaderProgram, "material.diffuse_color");
+	glUniform3fv(m1DiffuseUniform, 1, material.diffuse_color);
+	GLint m1SpecularUniform = glGetUniformLocation(ShaderProgram, "material.specular_color");
+	glUniform3fv(m1SpecularUniform, 1, material.specular_color);
+	GLint m1ShininessUniform = glGetUniformLocation(ShaderProgram, "material.specular_shininess");
+	glUniform1f(m1ShininessUniform, material.specular_shininess);
+
+/*-------------------------------------------------------------------------------------------*/
+
+	glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, ModelMatrix); 
+	
 	drawVerticalLine(0, 0, 1.5);
 	drawVerticalLine(-3, -sqrtf(sqrtf(2.0)*1.0)+2, -2.5); //ball
 	drawVerticalLine(3.5, -sqrtf(sqrtf(2.0)*1.0)+2, -2.5); //heli
-	drawVerticalLine(0, 0, -4); //heart
+	drawVerticalLine(0, 0, -4); //BB8
 	drawVerticalLine(0, -5.2, -9.1); //ball (we wanted to add a wand form harry potter but it always gave us a segmentation fault
+
     /* Issue draw command, using indexed triangle list */
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+
+	/*Floor*/
+    glBindBuffer(GL_ARRAY_BUFFER, VBO1);					
+    glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, CBO1);
+    glVertexAttribPointer(vColor, 3, GL_FLOAT,GL_FALSE, 0, 0);   
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO1);
+    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+
+    MultiplyMatrix(RotateFloor, FloorMatrix, FloorMatrix);
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FloorMatrix);  
+    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+
+	//light source 2
+	GLint l2AmbientUniform = glGetUniformLocation(ShaderProgram, "light.ambient_color"); //load in ambient color (from shader)
+	glUniformMatrix4fv(l2AmbientUniform, 1, GL_TRUE, objectLight.ambient_color); //load in ambient color (from struct in program)
+
+	GLint l2DiffuseUniform = glGetUniformLocation(ShaderProgram, "light.diffuse_color");
+	glUniform3fv(l2DiffuseUniform, 1, objectLight.diffuse_color);
+	GLint l2SpecularUniform = glGetUniformLocation(ShaderProgram, "light.specular_color");
+	glUniform3fv(l2SpecularUniform, 1, objectLight.specular_color);
+	GLint position2Uniform = glGetUniformLocation(ShaderProgram, "light.position");
+	glUniform3fv(position2Uniform, 1, objectLight.position);
+	GLint objectLightPosUniform = glGetUniformLocation(ShaderProgram, "lightPosition"); 
+	glUniform3fv(objectLightPosUniform, 1, objectLight.position);
+
+	//for light source 2
+	GLint m2AmbientUniform = glGetUniformLocation(ShaderProgram, "material.ambient_color");
+	glUniformMatrix4fv(m2AmbientUniform, 1, GL_TRUE, objectMaterial.ambient_color);
+	GLint m2DiffuseUniform = glGetUniformLocation(ShaderProgram, "material.diffuse_color");
+	glUniform3fv(m2DiffuseUniform, 1, objectMaterial.diffuse_color);
+	GLint m2SpecularUniform = glGetUniformLocation(ShaderProgram, "material.specular_color");
+	glUniform3fv(m2SpecularUniform, 1, objectMaterial.specular_color);
+	GLint m2ShininessUniform = glGetUniformLocation(ShaderProgram, "material.specular_shininess");
+	glUniform1f(m2ShininessUniform, objectMaterial.specular_shininess);
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBOBall); //object files
 	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -271,17 +354,15 @@ void Display()
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, HelicopterMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
-	glBindBuffer(GL_ARRAY_BUFFER, VBOHeart); //object files
+	glBindBuffer(GL_ARRAY_BUFFER, VBOBB8); //object files
 	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-	/* Bind buffer with index data of currently active object -- heart */
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeart);
+	/* Bind buffer with index data of currently active object -- BB8 */
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOBB8);
 	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
 
-	SetScaling(0.0125, 0.0125, 0.0125, HeartMatrix);
-	MultiplyMatrix(HeartMatrix, TranslateMiddle, HeartMatrix);
-    MultiplyMatrix(RotationMatrixAnim, HeartMatrix, HeartMatrix);
-    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, HeartMatrix);  
+    MultiplyMatrix(RotateBB8, BB8Matrix, BB8Matrix);
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, BB8Matrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
     
 
@@ -295,22 +376,6 @@ void Display()
     MultiplyMatrix(RotationMatrixAnim2, WandMatrix, WandMatrix);
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, WandMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
-
-/*Floor*/
-    glBindBuffer(GL_ARRAY_BUFFER, VBO1);					
-    glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, CBO1);
-    glVertexAttribPointer(vColor, 3, GL_FLOAT,GL_FALSE, 0, 0);   
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO1);
-    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
-
-    MultiplyMatrix(RotateFloor, FloorMatrix, FloorMatrix);
-    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FloorMatrix);  
-    glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
-
-
 
     /* Disable attributes */
     glDisableVertexAttribArray(vPosition);
@@ -337,6 +402,7 @@ void OnIdle()
     float angle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) / 1000.0) * (rotationSpeed/M_PI));
     float floorAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) / rotateWalls) * (180/M_PI))*stopIt;
     float heliAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) /1000.0) * (rotationSpeed/M_PI));
+    float bbAngle = switchDirection*((glutGet(GLUT_ELAPSED_TIME) /1000.0) * (rotationSpeed+50/M_PI));
     float figureAngle2 = switchDirection*(-(glutGet(GLUT_ELAPSED_TIME) /1000.0) * (rotationSpeed/M_PI));
 
     if(anim) {
@@ -345,6 +411,7 @@ void OnIdle()
 	    SetRotationY(angle, RotationMatrixAnim);
 	    SetRotationY(floorAngle, RotateFloor);
 		SetRotationY(heliAngle, RotateHeli);
+		SetRotationY(bbAngle, RotateBB8);
 	    SetRotationY(figureAngle2, RotationMatrixAnim2);
     }
 
@@ -363,8 +430,9 @@ void OnIdle()
 	MultiplyMatrix(RotationMatrixAnim, InitialTransformHeli, HelicopterMatrix);
     MultiplyMatrix(TranslateRight, HelicopterMatrix, HelicopterMatrix);
 
-    MultiplyMatrix(RotationMatrixAnim,InitialTransformHeart, HeartMatrix);
-    MultiplyMatrix(TranslateMiddle, HeartMatrix, HeartMatrix);
+	MultiplyMatrix(RotateBB8,InitialTransformBB8, BB8Matrix);
+    MultiplyMatrix(RotationMatrixAnim,InitialTransformBB8, BB8Matrix);
+    MultiplyMatrix(TranslateMiddle, BB8Matrix, BB8Matrix);
 
     MultiplyMatrix(RotationMatrixAnim2, InitialTransformCube2, WandMatrix);
     MultiplyMatrix(TranslateLowest, WandMatrix, WandMatrix);
@@ -430,15 +498,15 @@ void SetupDataBuffers()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeli);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataHeli.face_count*3*sizeof(GLushort), index_buffer_dataHeli, GL_STATIC_DRAW);
 
-/****************************************************** -- Heart -- ********************************************************/
+/****************************************************** -- BB8 -- ********************************************************/
 
-	glGenBuffers(1, &VBOHeart);
-	glBindBuffer(GL_ARRAY_BUFFER, VBOHeart);
-	glBufferData(GL_ARRAY_BUFFER, dataHeart.vertex_count*3*sizeof(GLfloat), vertex_buffer_dataHeart, GL_STATIC_DRAW);
+	glGenBuffers(1, &VBOBB8);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOBB8);
+	glBufferData(GL_ARRAY_BUFFER, dataBB8.vertex_count*3*sizeof(GLfloat), vertex_buffer_dataBB8, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &IBOHeart);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeart);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataHeart.face_count*3*sizeof(GLushort), index_buffer_dataHeart, GL_STATIC_DRAW);
+	glGenBuffers(1, &IBOBB8);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOBB8);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataBB8.face_count*3*sizeof(GLushort), index_buffer_dataBB8, GL_STATIC_DRAW);
 
 /****************************************************** -- Wand -- *********************************************************/
 
@@ -515,8 +583,8 @@ void CreateShaderProgram()
     }
 
     /* Load shader code from file */
-    VertexShaderString = LoadShader("shaders/vertexshader.vs");
-    FragmentShaderString = LoadShader("shaders/fragmentshader.fs");
+    VertexShaderString = LoadShader("shaders/vertexshader_phong.vs");
+    FragmentShaderString = LoadShader("shaders/fragmentshader_phong.fs");
 
     /* Separately add vertex and fragment shader to program */
     AddShader(ShaderProgram, VertexShaderString, GL_VERTEX_SHADER);
@@ -623,31 +691,31 @@ void Initialize(void)
 		index_buffer_dataHeli[i*3+2] = (GLushort)(*dataHeli.face_list[i]).vertex_index[2];
 	}
 
-	char* filename3 = "models/Heart.obj"; 
-	success = parse_obj_scene(&dataHeart, filename3);
+	char* filename3 = "models/BB8/bb8.obj"; 
+	success = parse_obj_scene(&dataBB8, filename3);
 
 	if(!success)
-		printf("Could not load heart file. Exiting.\n");
+		printf("Could not load BB8 file. Exiting.\n");
 
-	/*  Copy mesh data from structs into appropriate arrays -- load heart file */ 
-	vert = dataHeart.vertex_count;
-	indx = dataHeart.face_count;
+	/*  Copy mesh data from structs into appropriate arrays -- load BB8 file */ 
+	vert = dataBB8.vertex_count;
+	indx = dataBB8.face_count;
 
-	vertex_buffer_dataHeart = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
-	index_buffer_dataHeart = (GLushort*) calloc (indx*3, sizeof(GLushort));
+	vertex_buffer_dataBB8 = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
+	index_buffer_dataBB8 = (GLushort*) calloc (indx*3, sizeof(GLushort));
 
 	/* Vertices */
 	for(i=0; i<vert; i++) {
-		vertex_buffer_dataHeart[i*3] = (GLfloat)(*dataHeart.vertex_list[i]).e[0];
-		vertex_buffer_dataHeart[i*3+1] = (GLfloat)(*dataHeart.vertex_list[i]).e[1];
-		vertex_buffer_dataHeart[i*3+2] = (GLfloat)(*dataHeart.vertex_list[i]).e[2];
+		vertex_buffer_dataBB8[i*3] = (GLfloat)(*dataBB8.vertex_list[i]).e[0];
+		vertex_buffer_dataBB8[i*3+1] = (GLfloat)(*dataBB8.vertex_list[i]).e[1];
+		vertex_buffer_dataBB8[i*3+2] = (GLfloat)(*dataBB8.vertex_list[i]).e[2];
 	}
 
 	/* Indices */
 	for(i=0; i<indx; i++) {
-		index_buffer_dataHeart[i*3] = (GLushort)(*dataHeart.face_list[i]).vertex_index[0];
-		index_buffer_dataHeart[i*3+1] = (GLushort)(*dataHeart.face_list[i]).vertex_index[1];
-		index_buffer_dataHeart[i*3+2] = (GLushort)(*dataHeart.face_list[i]).vertex_index[2];
+		index_buffer_dataBB8[i*3] = (GLushort)(*dataBB8.face_list[i]).vertex_index[0];
+		index_buffer_dataBB8[i*3+1] = (GLushort)(*dataBB8.face_list[i]).vertex_index[1];
+		index_buffer_dataBB8[i*3+2] = (GLushort)(*dataBB8.face_list[i]).vertex_index[2];
 	}
 
 char* filename4 = "models/ball.obj"; 
@@ -680,9 +748,11 @@ char* filename4 = "models/ball.obj";
     /* Set background (clear) color to black */ 
     glClearColor(1.0, 1.0, 1.0, 1.0);
 
-    /* Enable depth testing */
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);    
+	/* Enable depth testing */
+	glEnable(GL_LIGHT0);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);    
+	glEnable(GL_LIGHTING);
 
     /* Setup vertex, color, and index buffer objects */
     SetupDataBuffers();
@@ -720,6 +790,57 @@ char* filename4 = "models/ball.obj";
     MultiplyMatrix(RotateX, TranslateOrigin, InitialTransform);
     MultiplyMatrix(RotateZ, InitialTransform, InitialTransform);
 
+    float tmp5[16];
+    float tmp_x5[16];
+    float tmp_z5[16];    
+    
+    SetTranslation(0, 0, 0, tmp5);
+    SetRotationX(0, tmp_x5);
+    SetRotationZ(0, tmp_z5);	
+
+    /* Translation for Floor and walls */	
+    SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-10, 0, TranslateFloor);
+    MultiplyMatrix(tmp_x5, tmp5, InitialTransform);
+    MultiplyMatrix(tmp_z5, InitialTransform, InitialTransform);
+
+	/* for lighting - initialize light */
+	//light source 1
+	material.ambient_color[0] = (246.0f/255);
+	material.ambient_color[1] = (224.0f/255);
+	material.ambient_color[2] = (23.0f/255);
+
+	//model color is now yellow because of diffuse light set to yellow
+	material.diffuse_color[0] = (246.0f/255);
+	material.diffuse_color[1] = (224.0f/255);
+	material.diffuse_color[2] = (23.0f/255);
+
+	material.specular_color[0] = 1.0f;
+	material.specular_color[1] = 1.0f;
+	material.specular_color[2] = 1.0f;
+
+	material.specular_shininess= 15.0f;
+
+
+	//should be the same as diffuse light color
+	light.ambient_color[0] = (246.0f/255);
+	light.ambient_color[1] = (224.0f/255);
+	light.ambient_color[2] = (23.0f/255);
+
+	//model color is now yellow because of diffuse light set to yellow
+	light.diffuse_color[0] = (246.0f/255);
+	light.diffuse_color[1] = (224.0f/255);
+	light.diffuse_color[2] = (23.0f/255);
+
+	light.specular_color[0] = 1.0f;
+	light.specular_color[1] = 1.0f;
+	light.specular_color[2] = 1.0f;
+
+	//positioned in roor turns with background wall/floor)
+	light.position[0] = -7.0f;
+	light.position[1] = 2.0f;
+	light.position[2] = -7.0f;
+
+
 	/**********************************************************************
 	* tmp variables are needed to translate all objects to the center	  *
 	* instead of defining more global variables we decided to create	  *
@@ -755,9 +876,11 @@ char* filename4 = "models/ball.obj";
     SetTranslation(0, 0, 0, tmp3);
     SetRotationX(0, tmp_x3);	
 
-    /* Translate cube to middle and scale it -- heart */	
-    SetTranslation(-150, -sqrtf(sqrtf(2.0) * 1.0)-250, 0, TranslateMiddle);
-    MultiplyMatrix(tmp_x3, tmp3, InitialTransformHeart);
+    /* Translate cube to middle and scale it -- BB8 */
+	SetScaling(0.0125, 0.0125, 0.0125, tmp3);	
+    SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-1, 0, TranslateMiddle);
+	MultiplyMatrix(BB8Matrix, TranslateMiddle, BB8Matrix);
+    MultiplyMatrix(tmp_x3, tmp3, InitialTransformBB8);
 
     float tmp4[16];
     float tmp_x4[16];    
@@ -770,19 +893,41 @@ char* filename4 = "models/ball.obj";
     MultiplyMatrix(tmp_x4, tmp4, InitialTransformCube2);
 
 
-    float tmp5[16];
-    float tmp_x5[16];
-    float tmp_z5[16];    
-    
-    SetTranslation(0, 0, 0, tmp5);
-    SetRotationX(0, tmp_x5);
-    SetRotationZ(0, tmp_z5);	
+	//light source 2
+	objectMaterial.ambient_color[0] = (184.0f/255);
+	objectMaterial.ambient_color[1] = (151.0f/255);
+	objectMaterial.ambient_color[2] = (206.0f/255);
 
-    /* Translation for Floor and walls */	
-    SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-10, 0, TranslateFloor);
-    MultiplyMatrix(tmp_x5, tmp5, InitialTransform);
-    MultiplyMatrix(tmp_z5, InitialTransform, InitialTransform);
+	//model color is now violet because of diffuse light set to violet
+	objectMaterial.diffuse_color[0] = (184.0f/255);
+	objectMaterial.diffuse_color[1] = (151.0f/255);
+	objectMaterial.diffuse_color[2] = (206.0f/255);
 
+	objectMaterial.specular_color[0] = 1.0f;
+	objectMaterial.specular_color[1] = 1.0f;
+	objectMaterial.specular_color[2] = 1.0f;
+
+	objectMaterial.specular_shininess= 5.0f;
+
+
+	//should be the same as diffuse light color
+	objectLight.ambient_color[0] = (184.0f/255);
+	objectLight.ambient_color[1] = (151.0f/255);
+	objectLight.ambient_color[2] = (206.0f/255);
+
+	//model color is now violet because of diffuse light set to violet
+	objectLight.diffuse_color[0] = (184.0f/255);
+	objectLight.diffuse_color[1] = (151.0f/255);
+	objectLight.diffuse_color[2] = (206.0f/255);
+
+	objectLight.specular_color[0] = 1.0f;
+	objectLight.specular_color[1] = 1.0f;
+	objectLight.specular_color[2] = 1.0f;
+
+	//is positioned in the right front of our model, moves with merrygoround but should not 
+	objectLight.position[0] = 10.0f;
+	objectLight.position[1] = 1.0f;
+	objectLight.position[2] = 10.0f;
 }
 
 
