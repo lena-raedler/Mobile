@@ -3,11 +3,6 @@
 *Mobile_Shader.c
 *This is an implementation of a Mobile
 *
-*NOTE: the wand object mentioned resulted in a segmentation fault
-*thats why we chose to put the ball object a second time.
-*for the next implementation we are going to search for an alternamtive
-*object to use
-*
 *
 *Anna-Lena Rädler, Sabrina Schmitzer, Simon Priller
 **********************************************************************/
@@ -69,7 +64,7 @@ float ModelMatrix[16]; /* Big yellow Bar matrix */
 float BallMatrix[16]; /*for the rotating cube - ball.obj*/
 float HelicopterMatrix[16]; /*for the second cube - helicopter */
 float BB8Matrix[16]; /*for the tiny cube in the middle - BB8*/
-float WandMatrix[16]; /*for cube hanging on the lowest in the middle - wand*/
+float HeartMatrix[16]; /*for cube hanging on the lowest in the middle - wand*/
 float FloorMatrix[16]; /*for floor and walls*/
 
 /*float LeftBarMatrix[16];
@@ -87,7 +82,7 @@ float RotationMatrixAnim2[16]; /* for cube rotatio the other way round*/
 float TranslateLeft[16]; /*for ballMatrix*/
 float TranslateRight[16]; /*for helicopterMatrix*/
 float TranslateMiddle[16]; /*for BB8Matrix*/
-float TranslateLowest[16]; /*for wandMatrix*/
+float TranslateLowest[16]; /*for HeartMatrix*/
 float TranslateFloor[16];
 float InitialTransformCube[16]; /*for rotating cubes*/
 float InitialTransformHeli[16];
@@ -129,6 +124,7 @@ double objectHue = 276;
 float objectValue = 0.808;
 
 /*yellow bar used as upper layer*/
+/*yellow color cant be shown since the material color overrides the color declared in the color_buffer_data*/
 
 GLfloat vertex_buffer_data3[] = {
     4.0,0.0,0.0,
@@ -202,6 +198,9 @@ GLushort index_buffer_data2[] = {
 /***********************************************************
 *
 * HSV2RGB
+*
+* used to convert  the given HSV values to RGB such that the
+* shader can work with them.
 *
 **************************************************************/
 
@@ -328,7 +327,7 @@ void Display()
 	GLint light1PosUniform = glGetUniformLocation(ShaderProgram, "lightPosition"); 
 	glUniform3fv(light1PosUniform, 1, light.position);
 
-	//for light source 1
+	//for background light
 	GLint m1AmbientUniform = glGetUniformLocation(ShaderProgram, "material.ambient_color");
 	glUniformMatrix4fv(m1AmbientUniform, 1, GL_TRUE, material.ambient_color);
 	GLint m1DiffuseUniform = glGetUniformLocation(ShaderProgram, "material.diffuse_color");
@@ -365,7 +364,7 @@ void Display()
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, FloorMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
-	//light source 2
+	//light 'bulb' in the single objects - object light
 	GLint l2AmbientUniform = glGetUniformLocation(ShaderProgram, "light.ambient_color"); //load in ambient color (from shader)
 	glUniformMatrix4fv(l2AmbientUniform, 1, GL_TRUE, objectLight.ambient_color); //load in ambient color (from struct in program)
 
@@ -378,7 +377,7 @@ void Display()
 	GLint objectLightPosUniform = glGetUniformLocation(ShaderProgram, "lightPosition"); 
 	glUniform3fv(objectLightPosUniform, 1, objectLight.position);
 
-	//for light source 2
+	//for object light
 	GLint m2AmbientUniform = glGetUniformLocation(ShaderProgram, "material.ambient_color");
 	glUniformMatrix4fv(m2AmbientUniform, 1, GL_TRUE, objectMaterial.ambient_color);
 	GLint m2DiffuseUniform = glGetUniformLocation(ShaderProgram, "material.diffuse_color");
@@ -425,12 +424,12 @@ void Display()
 	glBindBuffer(GL_ARRAY_BUFFER, VBOWand); //object files
 	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-	/* Bind buffer with index data of currently active object -- wand */
+	/* Bind buffer with index data of currently active object -- heart */
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOWand);
 	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
 	
-    MultiplyMatrix(RotationMatrixAnim2, WandMatrix, WandMatrix);
-    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, WandMatrix);  
+    MultiplyMatrix(RotationMatrixAnim2, HeartMatrix, HeartMatrix);
+    glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, HeartMatrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
 
     /* Disable attributes */
@@ -468,7 +467,7 @@ void OnIdle()
 	    SetRotationY(floorAngle, RotateFloor);
 		SetRotationY(heliAngle, RotateHeli);
 		SetRotationY(bbAngle, RotateBB8);
-	    SetRotationY(figureAngle2, RotationMatrixAnim2);
+	    SetRotationY(figureAngle2, RotationMatrixAnim2); // for heart on lowest level
     }
 
 
@@ -490,8 +489,8 @@ void OnIdle()
     MultiplyMatrix(RotationMatrixAnim,InitialTransformBB8, BB8Matrix);
     MultiplyMatrix(TranslateMiddle, BB8Matrix, BB8Matrix);
 
-    MultiplyMatrix(RotationMatrixAnim2, InitialTransformCube2, WandMatrix);
-    MultiplyMatrix(TranslateLowest, WandMatrix, WandMatrix);
+    MultiplyMatrix(RotationMatrixAnim2, InitialTransformCube2, HeartMatrix);
+    MultiplyMatrix(TranslateLowest, HeartMatrix, HeartMatrix);
 
     /* Request redrawing for of window content */  
     glutPostRedisplay();
@@ -564,7 +563,7 @@ void SetupDataBuffers()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOBB8);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataBB8.face_count*3*sizeof(GLushort), index_buffer_dataBB8, GL_STATIC_DRAW);
 
-/****************************************************** -- Wand -- *********************************************************/
+/****************************************************** -- Heart -- *********************************************************/
 
 	glGenBuffers(1, &VBOWand);
 	glBindBuffer(GL_ARRAY_BUFFER, VBOWand);
@@ -747,7 +746,7 @@ void Initialize(void)
 		index_buffer_dataHeli[i*3+2] = (GLushort)(*dataHeli.face_list[i]).vertex_index[2];
 	}
 
-	char* filename3 = "models/BB8/bb8.obj";
+	char* filename3 = "models/bb8_3_normals.obj";
 	success = parse_obj_scene(&dataBB8, filename3);
 
 	if(!success)
@@ -774,7 +773,7 @@ void Initialize(void)
 		index_buffer_dataBB8[i*3+2] = (GLushort)(*dataBB8.face_list[i]).vertex_index[2];
 	}
 
-char* filename4 = "models/ball3.obj"; 
+char* filename4 = "models/heart_3_normals.obj"; 
 	success = parse_obj_scene(&dataWand, filename4);
 
 	if(!success)
@@ -860,23 +859,24 @@ char* filename4 = "models/ball3.obj";
     MultiplyMatrix(tmp_z5, InitialTransform, InitialTransform);
 
 	/* for lighting - initialize light */
+
+	float resultLight1[3];
+	HSV2RGB(Hue, Value, resultLight1);
 	//light source 1
-	material.ambient_color[0] = (246.0f/255);
-	material.ambient_color[1] = (224.0f/255);
-	material.ambient_color[2] = (23.0f/255);
+	material.ambient_color[0] = resultLight1[0];
+	material.ambient_color[1] = resultLight1[1];
+	material.ambient_color[2] = resultLight1[2];
 
 	//model color is now yellow because of diffuse light set to yellow
-	material.diffuse_color[0] = (246.0f/255);
-	material.diffuse_color[1] = (224.0f/255);
-	material.diffuse_color[2] = (23.0f/255);
+	material.diffuse_color[0] = (resultLight1[0]/155);
+	material.diffuse_color[1] = (resultLight1[1]/155);
+	material.diffuse_color[2] = (resultLight1[2]/155);
 
 	material.specular_color[0] = 1.0f;
 	material.specular_color[1] = 1.0f;
 	material.specular_color[2] = 1.0f;
 
 	material.specular_shininess= 15.0f;
-	float resultLight1[3];
-	HSV2RGB(Hue, Value, resultLight1);
 
 	//should be the same as diffuse light color
 	light.ambient_color[0] = resultLight1[0];
@@ -884,16 +884,16 @@ char* filename4 = "models/ball3.obj";
 	light.ambient_color[2] = resultLight1[2];
 
 	//model color is now yellow because of diffuse light set to yellow
-	//remark: diffuse light has to be smaller than 1
-	light.diffuse_color[0] = resultLight1[0]/255;
-	light.diffuse_color[1] = resultLight1[1]/255;
-	light.diffuse_color[2] = resultLight1[2]/255;
+	//remark: diffuse light divided by x result in a different "cone"-size
+	light.diffuse_color[0] = resultLight1[0]/155;
+	light.diffuse_color[1] = resultLight1[1]/155;
+	light.diffuse_color[2] = resultLight1[2]/155;
 
 	light.specular_color[0] = 1.0f;
 	light.specular_color[1] = 1.0f;
 	light.specular_color[2] = 1.0f;
 
-	//positioned in roor turns with background wall/floor)
+	//positioned in the edge facing right to the viewer
 	light.position[0] = -7.0f;
 	light.position[1] = 2.0f;
 	light.position[2] = -7.0f;
@@ -944,10 +944,12 @@ char* filename4 = "models/ball3.obj";
     float tmp_x4[16];    
     
     SetTranslation(0, 0, 0, tmp4);
-    SetRotationX(180, tmp_x4);	
+    SetRotationX(0, tmp_x4);	
 
     /* Translate cube to middle and scale it */	
+	SetScaling(0.0125, 0.0125, 0.0125, tmp4);	
     SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-5, 0, TranslateLowest);
+	MultiplyMatrix(HeartMatrix, TranslateLowest, HeartMatrix);
     MultiplyMatrix(tmp_x4, tmp4, InitialTransformCube2);
 
 	float resultLight2[3];
@@ -967,24 +969,24 @@ char* filename4 = "models/ball3.obj";
 	objectMaterial.specular_color[1] = 1.0f;
 	objectMaterial.specular_color[2] = 1.0f;
 
-	objectMaterial.specular_shininess= 5.0f;
+	objectMaterial.specular_shininess= 15.0f;
 
 
 	//should be the same as diffuse light color
-	objectLight.ambient_color[0] = (184.0f/255);
-	objectLight.ambient_color[1] = (151.0f/255);
-	objectLight.ambient_color[2] = (206.0f/255);
+	objectLight.ambient_color[0] = resultLight2[0];
+	objectLight.ambient_color[1] = resultLight2[1];
+	objectLight.ambient_color[2] = resultLight2[2];
 
 	//model color is now violet because of diffuse light set to violet
-	objectLight.diffuse_color[0] = (184.0f/255);
-	objectLight.diffuse_color[1] = (151.0f/255);
-	objectLight.diffuse_color[2] = (206.0f/255);
+	objectLight.diffuse_color[0] = (resultLight2[0]/255);
+	objectLight.diffuse_color[1] = (resultLight2[1]/255);
+	objectLight.diffuse_color[2] = (resultLight2[2]/255);
 
 	objectLight.specular_color[0] = 1.0f;
 	objectLight.specular_color[1] = 1.0f;
 	objectLight.specular_color[2] = 1.0f;
 
-	//is positioned in the right front of our model, moves with merrygoround but should not 
+	//is positioned in the object itself and moves around with it
 	objectLight.position[0] = 10.0f * *RotationMatrixAnim;
 	objectLight.position[1] = 1.0f * *RotationMatrixAnim;
 	objectLight.position[2] = 10.0f * *RotationMatrixAnim;
@@ -1112,13 +1114,13 @@ void Keyboard(unsigned char key, int x, int y) {
 			light.ambient_color[1] = result[1];
 			light.ambient_color[2] = result[2];
 
-			light.diffuse_color[0] = result[0]/255;
-			light.diffuse_color[1] = result[1]/255;
-			light.diffuse_color[2] = result[2]/255;
+			light.diffuse_color[0] = result[0]/155;
+			light.diffuse_color[1] = result[1]/155;
+			light.diffuse_color[2] = result[2]/155;
 
-			material.diffuse_color[0] = result[0]/255;
-			material.diffuse_color[1] = result[1]/255;
-			material.diffuse_color[2] = result[2]/255;
+			material.diffuse_color[0] = result[0]/155;
+			material.diffuse_color[1] = result[1]/155;
+			material.diffuse_color[2] = result[2]/155;
 			material.ambient_color[0] = result[0];
 			material.ambient_color[1] = result[1];
 			material.ambient_color[2] = result[2];
@@ -1139,40 +1141,39 @@ void Keyboard(unsigned char key, int x, int y) {
 			break;
 
 /*user control for the hsv2rgb values for the light*/
-		case 'h':
+		case 'h': // -- user can change the Hue of the background light
 			Hue = fmod((Hue + 21), 360.0);
 			HSV2RGB(Hue, Value, result);
 			light.ambient_color[0] = result[0];
 			light.ambient_color[1] = result[1];
 			light.ambient_color[2] = result[2];
 
-			light.diffuse_color[0] = result[0]/255;
-			light.diffuse_color[1] = result[1]/255;
-			light.diffuse_color[2] = result[2]/255;
+			light.diffuse_color[0] = result[0]/155;
+			light.diffuse_color[1] = result[1]/155;
+			light.diffuse_color[2] = result[2]/155;
 
-			material.diffuse_color[0] = result[0]/255;
-			material.diffuse_color[1] = result[1]/255;
-			material.diffuse_color[2] = result[2]/255;
+			material.diffuse_color[0] = result[0]/155;
+			material.diffuse_color[1] = result[1]/155;
+			material.diffuse_color[2] = result[2]/155;
 			break;
 
-		case 'v':
+		case 'v': // -- user can change the Value; operates on the same Result-array for fancy changes
 			Value = fmod((Value + 0.12), 1);
 			HSV2RGB(Hue, Value, result);
 			light.ambient_color[0] = result[0];
 			light.ambient_color[1] = result[1];
 			light.ambient_color[2] = result[2];
 
-			light.diffuse_color[0] = result[0]/255;
-			light.diffuse_color[1] = result[1]/255;
-			light.diffuse_color[2] = result[2]/255;
+			light.diffuse_color[0] = result[0]/155;
+			light.diffuse_color[1] = result[1]/155;
+			light.diffuse_color[2] = result[2]/155;
 
-			material.diffuse_color[0] = result[0]/255;
-			material.diffuse_color[1] = result[1]/255;
-			material.diffuse_color[2] = result[2]/255;
+			material.diffuse_color[0] = result[0]/155;
+			material.diffuse_color[1] = result[1]/155;
+			material.diffuse_color[2] = result[2]/155;
 			break;
 
-		case 'a':
-			
+		case 'a': // -- user can switch off ambient lighting
 			light.ambient_color[0] = 0;
 			light.ambient_color[1] = 0;
 			light.ambient_color[2] = 0;
@@ -1182,7 +1183,7 @@ void Keyboard(unsigned char key, int x, int y) {
 			material.ambient_color[2] = 0;
 			break;
 
-		case 'd':
+		case 'd': // -- user can switch off diffuse lighting
 			light.diffuse_color[0] = 0;
 			light.diffuse_color[1] = 0;
 			light.diffuse_color[2] = 0;
@@ -1191,7 +1192,7 @@ void Keyboard(unsigned char key, int x, int y) {
 			material.diffuse_color[2] = 0;
 			break;
 		
-		case 's':
+		case 's': // -- user can switch specular lighting
 			light.specular_color[0] = 0;
 			light.specular_color[1] = 0;
 			light.specular_color[2] = 0;
