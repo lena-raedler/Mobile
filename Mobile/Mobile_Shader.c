@@ -99,11 +99,10 @@ float RotateBB8[16]; /*rotation Matrix for bb8 object*/
 
 float rotationSpeed = 180.0;
 float rotateWalls = 3000.0; //automatic cameramode
-float stopIt = 1.0;
+float stopIt = 0.0;
 int switchDirection = 1;
 GLboolean anim = GL_TRUE;
 GLboolean normalMode = GL_TRUE;
-GLboolean automaticMode = GL_TRUE;
 float cameraDisp = -30.0;
 float cameraPosition = 0.0;
 
@@ -121,7 +120,13 @@ struct Material {
 	float specular_shininess;
 } material, objectMaterial;
 
+//background light color
+double Hue = 54;
+float Value = 0.965;
 
+//objects light color
+double objectHue = 276;
+float objectValue = 0.808;
 
 /*yellow bar used as upper layer*/
 
@@ -194,6 +199,57 @@ GLushort index_buffer_data2[] = {
 
 /*----------------------------------------------------------------*/
 
+/***********************************************************
+*
+* HSV2RGB
+*
+**************************************************************/
+
+void HSV2RGB(double H, float V, float* result) {
+	/*assumption: S is always 1 since it has to be fully saturated*/
+
+	float C = V*1; //1 for the Saturation
+	float X = C * (1 - fabs(fmod((H/60.0), 2.0) - 1));
+	float m = V - C; // always equal to 0
+
+	float pseudo[3];
+	for(int i = 0; i < 3; i++) {
+		if(0 <= H && H < 60) {
+			pseudo[0] = C;
+			pseudo[1] = X;
+			pseudo[2] = 0;
+		}
+		else if(60 <= H && H < 120) {
+			pseudo[0] = X;
+			pseudo[1] = C;
+			pseudo[2] = 0;
+		}
+		else if(120 <= H && H < 180) {
+			pseudo[0] = 0;
+			pseudo[1] = C;
+			pseudo[2] = X;
+		}
+		else if(180 <= H && H < 240) {
+			pseudo[0] = 0;
+			pseudo[1] = X;
+			pseudo[2] = C;
+		}
+		else if(240 <= H && H < 300) {
+			pseudo[0] = X;
+			pseudo[1] = 0;
+			pseudo[2] = C;
+		}
+		else if(300 <= H && H < 360) {
+			pseudo[0] = C;
+			pseudo[1] = 0;
+			pseudo[2] = X;
+		}
+	}
+	
+	result[0] = (pseudo[0]+m)*255;
+	result[1] = (pseudo[1]+m)*255;
+	result[2] = (pseudo[2]+m)*255;
+}
 
 
 /******************************************************************
@@ -637,7 +693,7 @@ void Initialize(void)
 	int success;
 
 	/* Load first OBJ model */
-	char* filename1 = "models/ball.obj"; 
+	char* filename1 = "models/ball3.obj"; 
 	success = parse_obj_scene(&dataBall, filename1);
 
 	if(!success)
@@ -664,7 +720,7 @@ void Initialize(void)
 		index_buffer_dataBall[i*3+2] = (GLushort)(*dataBall.face_list[i]).vertex_index[2];
 	}
 
-	char* filename2 = "models/heli.obj"; 
+	char* filename2 = "models/heli_3.obj"; 
 	success = parse_obj_scene(&dataHeli, filename2);
 
 	if(!success)
@@ -691,7 +747,7 @@ void Initialize(void)
 		index_buffer_dataHeli[i*3+2] = (GLushort)(*dataHeli.face_list[i]).vertex_index[2];
 	}
 
-	char* filename3 = "models/BB8/bb8.obj"; 
+	char* filename3 = "models/BB8/bb8.obj";
 	success = parse_obj_scene(&dataBB8, filename3);
 
 	if(!success)
@@ -718,7 +774,7 @@ void Initialize(void)
 		index_buffer_dataBB8[i*3+2] = (GLushort)(*dataBB8.face_list[i]).vertex_index[2];
 	}
 
-char* filename4 = "models/ball.obj"; 
+char* filename4 = "models/ball3.obj"; 
 	success = parse_obj_scene(&dataWand, filename4);
 
 	if(!success)
@@ -819,17 +875,19 @@ char* filename4 = "models/ball.obj";
 	material.specular_color[2] = 1.0f;
 
 	material.specular_shininess= 15.0f;
-
+	float resultLight1[3];
+	HSV2RGB(Hue, Value, resultLight1);
 
 	//should be the same as diffuse light color
-	light.ambient_color[0] = (246.0f/255);
-	light.ambient_color[1] = (224.0f/255);
-	light.ambient_color[2] = (23.0f/255);
+	light.ambient_color[0] = resultLight1[0];
+	light.ambient_color[1] = resultLight1[1];
+	light.ambient_color[2] = resultLight1[2];
 
 	//model color is now yellow because of diffuse light set to yellow
-	light.diffuse_color[0] = (246.0f/255);
-	light.diffuse_color[1] = (224.0f/255);
-	light.diffuse_color[2] = (23.0f/255);
+	//remark: diffuse light has to be smaller than 1
+	light.diffuse_color[0] = resultLight1[0]/255;
+	light.diffuse_color[1] = resultLight1[1]/255;
+	light.diffuse_color[2] = resultLight1[2]/255;
 
 	light.specular_color[0] = 1.0f;
 	light.specular_color[1] = 1.0f;
@@ -892,16 +950,18 @@ char* filename4 = "models/ball.obj";
     SetTranslation(0, -sqrtf(sqrtf(2.0) * 1.0)-5, 0, TranslateLowest);
     MultiplyMatrix(tmp_x4, tmp4, InitialTransformCube2);
 
+	float resultLight2[3];
+	HSV2RGB(objectHue, objectValue, resultLight2);
 
 	//light source 2
-	objectMaterial.ambient_color[0] = (184.0f/255);
-	objectMaterial.ambient_color[1] = (151.0f/255);
-	objectMaterial.ambient_color[2] = (206.0f/255);
+	objectMaterial.ambient_color[0] = resultLight2[0];
+	objectMaterial.ambient_color[1] = resultLight2[1];
+	objectMaterial.ambient_color[2] = resultLight2[2];
 
 	//model color is now violet because of diffuse light set to violet
-	objectMaterial.diffuse_color[0] = (184.0f/255);
-	objectMaterial.diffuse_color[1] = (151.0f/255);
-	objectMaterial.diffuse_color[2] = (206.0f/255);
+	objectMaterial.diffuse_color[0] = (resultLight2[0]/255);
+	objectMaterial.diffuse_color[1] = (resultLight2[1]/255);
+	objectMaterial.diffuse_color[2] = (resultLight2[2]/255);
 
 	objectMaterial.specular_color[0] = 1.0f;
 	objectMaterial.specular_color[1] = 1.0f;
@@ -925,9 +985,9 @@ char* filename4 = "models/ball.obj";
 	objectLight.specular_color[2] = 1.0f;
 
 	//is positioned in the right front of our model, moves with merrygoround but should not 
-	objectLight.position[0] = 10.0f;
-	objectLight.position[1] = 1.0f;
-	objectLight.position[2] = 10.0f;
+	objectLight.position[0] = 10.0f * *RotationMatrixAnim;
+	objectLight.position[1] = 1.0f * *RotationMatrixAnim;
+	objectLight.position[2] = 10.0f * *RotationMatrixAnim;
 }
 
 
@@ -941,22 +1001,11 @@ char* filename4 = "models/ball.obj";
 *
 *******************************************************************/
 
-void Keyboard(unsigned char key, int x, int y)   
-{
-	if(key == 'n') {
-		automaticMode = GL_TRUE;
-		anim = GL_TRUE;
-		stopIt = 1.0;
-		rotateWalls = 1200.0;
-		switchDirection = 1;
-		rotationSpeed = 180.0f;
-		cameraDisp = -30.0;
-		cameraPosition = 0.0;
-		SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
-	}
-	else if(key == '1') {
+void Keyboard(unsigned char key, int x, int y) {
+	float result[3];
+
+	if(key == '1') {
     	normalMode = GL_TRUE;
-		automaticMode = GL_FALSE;
 		stopIt = 0.0;
 		anim = GL_TRUE;
 		switchDirection = 1;
@@ -967,7 +1016,6 @@ void Keyboard(unsigned char key, int x, int y)
  	}
  	else if(key == '2') {
     	normalMode = GL_FALSE;
-		automaticMode = GL_FALSE;
 		stopIt = 0.0;
 		anim = GL_TRUE;
 		switchDirection = 1;
@@ -977,7 +1025,7 @@ void Keyboard(unsigned char key, int x, int y)
 		SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
 	}
  
-	if(normalMode && (!automaticMode)) {
+	if(normalMode) {
 		switch( key ) 
 		{
 		/* Reset initial rotation of object */
@@ -1017,39 +1065,35 @@ void Keyboard(unsigned char key, int x, int y)
 			}
 			break;
 
-		case 'n':
-			automaticMode = GL_TRUE;
-			break;
-
 		case 'q': case 'Q':  
 			exit(0);    
 			break;
 		}
 	}
-	else if((!normalMode) && (!automaticMode)) {
+	else if((!normalMode)) {
 		switch(key) {
-		case 'w':
+		case '8':
 			if(cameraDisp < -10) {
 				cameraDisp += 2.5;
 				SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
 			}
 			break;
 
-		case 's':
+		case '5':
 			if(cameraDisp > -40) {
 				cameraDisp -= 2.5;
 				SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
 			}
 			break;
 
-		case 'a':
+		case '4':
 			if(cameraPosition < 20) {
 				cameraPosition += 2.5;
 				SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
 			}
 			break;
 
-		case 'd':
+		case '6':
 			if(cameraPosition > -20) {
 				cameraPosition -= 2.5;	
 				SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
@@ -1062,11 +1106,95 @@ void Keyboard(unsigned char key, int x, int y)
 			rotationSpeed = 180.0f;
 			cameraDisp = -30.0;
 			cameraPosition = 0.0;
+
+			HSV2RGB(54, 0.965, result);
+			light.ambient_color[0] = result[0];
+			light.ambient_color[1] = result[1];
+			light.ambient_color[2] = result[2];
+
+			light.diffuse_color[0] = result[0]/255;
+			light.diffuse_color[1] = result[1]/255;
+			light.diffuse_color[2] = result[2]/255;
+
+			material.diffuse_color[0] = result[0]/255;
+			material.diffuse_color[1] = result[1]/255;
+			material.diffuse_color[2] = result[2]/255;
+			material.ambient_color[0] = result[0];
+			material.ambient_color[1] = result[1];
+			material.ambient_color[2] = result[2];
+
+			light.specular_color[0] = 1.0;
+			light.specular_color[1] = 1.0;
+			light.specular_color[2] = 1.0;
 			SetTranslation(cameraPosition, 0.0, cameraDisp, ViewMatrix);
 			break;
 
-		case 'n':
-			automaticMode = GL_TRUE;
+		case 'p':
+			if(anim) {
+			anim = GL_FALSE;
+			}
+			else {
+			anim = GL_TRUE;
+			}
+			break;
+
+/*user control for the hsv2rgb values for the light*/
+		case 'h':
+			Hue = fmod((Hue + 21), 360.0);
+			HSV2RGB(Hue, Value, result);
+			light.ambient_color[0] = result[0];
+			light.ambient_color[1] = result[1];
+			light.ambient_color[2] = result[2];
+
+			light.diffuse_color[0] = result[0]/255;
+			light.diffuse_color[1] = result[1]/255;
+			light.diffuse_color[2] = result[2]/255;
+
+			material.diffuse_color[0] = result[0]/255;
+			material.diffuse_color[1] = result[1]/255;
+			material.diffuse_color[2] = result[2]/255;
+			break;
+
+		case 'v':
+			Value = fmod((Value + 0.12), 1);
+			HSV2RGB(Hue, Value, result);
+			light.ambient_color[0] = result[0];
+			light.ambient_color[1] = result[1];
+			light.ambient_color[2] = result[2];
+
+			light.diffuse_color[0] = result[0]/255;
+			light.diffuse_color[1] = result[1]/255;
+			light.diffuse_color[2] = result[2]/255;
+
+			material.diffuse_color[0] = result[0]/255;
+			material.diffuse_color[1] = result[1]/255;
+			material.diffuse_color[2] = result[2]/255;
+			break;
+
+		case 'a':
+			
+			light.ambient_color[0] = 0;
+			light.ambient_color[1] = 0;
+			light.ambient_color[2] = 0;
+
+			material.ambient_color[0] = 0;
+			material.ambient_color[1] = 0;
+			material.ambient_color[2] = 0;
+			break;
+
+		case 'd':
+			light.diffuse_color[0] = 0;
+			light.diffuse_color[1] = 0;
+			light.diffuse_color[2] = 0;
+			material.diffuse_color[0] = 0;
+			material.diffuse_color[1] = 0;
+			material.diffuse_color[2] = 0;
+			break;
+		
+		case 's':
+			light.specular_color[0] = 0;
+			light.specular_color[1] = 0;
+			light.specular_color[2] = 0;
 			break;
 
 		case 'q': case 'Q':  

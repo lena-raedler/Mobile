@@ -5,7 +5,7 @@ OBJ = Mobile_Shader.o LoadShader.o Matrix.o StringExtra.o OBJParser.o List.o
 TARGET = Mobile_Shader
 
 CFLAGS = -g -Wall -Wextra
-LDLIBS = -lm -lglut -lGLEW -lGL 
+LDLIBS = -lm -lglut -lGLEW -lGL -lGLU
 INCLUDES = -Isource
 
 SRC_DIR = source

@@ -4,7 +4,7 @@ LD = gcc
 OBJ = Mobile_Shader.o LoadShader.o Matrix.o StringExtra.o OBJParser.o List.o
 TARGET = Mobile_Shader
 
-CFLAGS = -g -Wall -Wextra
+CFLAGS = -g -Wall -Wextra -std=gnu99
 LDLIBS = -lm -lglut -lGLEW -lGL -lGLU
 INCLUDES = -Isource
 
