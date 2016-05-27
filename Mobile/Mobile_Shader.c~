@@ -19,11 +19,12 @@
 
 /* Local includes */
 #include "LoadShader.h"
+#include "LoadTexture.h"
 #include "Matrix.h"
 #include "OBJParser.h"
 
 /* Define handle to a vertex buffer object */
-GLuint VBO, VBO1, VBOBall, VBOHeli, VBOBB8, VBOWand;
+GLuint VBO, VBO1, VBOBall, VBOHeli, VBOBB8, VBOWand, VBOtex;
 
 /* Define handle to a color buffer object */
 GLuint CBO, CBO1; 
@@ -50,7 +51,7 @@ obj_scene_data dataBB8;
 obj_scene_data dataWand;
 
 /* Indices to vertex attributes; in this case positon and color */ 
-enum DataID {vPosition = 0, vColor = 1}; 
+enum DataID {vPosition = 0, vColor = 1, vertex_normal = 2, vUV = 3}; 
 
 /* Strings for loading and storing shader code */
 static const char* VertexShaderString;
@@ -165,13 +166,20 @@ GLushort index_buffer_data3[] = { /* Indices for the triangles */
 };
 
 GLfloat vertex_buffer_data2[] = { //floor
-	9.0, 0.0, -9.0,
-	-9.0, 0.0, -9.0,
-	-9.0, 0.0, 9.0,
-	9.0, 0.0, 9.0,
-	9.0, 18.0, -9.0,
-	-9.0,18.0, -9.0,
-	-9.0, 18.0, 9.0,
+	9.0, 0.0, -9.0, //0
+	-9.0, 0.0, -9.0,//1
+	-9.0, 0.0, 9.0,//2
+	9.0, 0.0, 9.0, //3
+	
+	-9.0, 0.0, -9.0, //4
+	9.0, 0.0, -9.0, //5
+	9.0, 18.0, -9.0, //6
+	-9.0,18.0, -9.0, //7
+
+	-9.0, 0.0, -9.0, //8
+	-9.0,18.0, -9.0, //9
+	-9.0, 18.0, 9.0, //10
+	-9.0, 0.0, 9.0, //11
 };
 
 GLfloat color_buffer_data2[] = {
@@ -187,13 +195,103 @@ GLfloat color_buffer_data2[] = {
 GLushort index_buffer_data2[] = {
 	0,1,3,
 	1,2,3,
-	0,4,1,
-	4,5,1,
-	5,1,6,
-	1,6,2,
+	4,5,6,
+	4,6,7,
+	8,9,10,
+	8,10,11,
 };
 
+/*----------------------------------TEXTURING------------------------------------*/
+//Variables for texture handling
+GLuint TextureID;
+GLuint TextureUniform;
+TextureDataPtr Texture;
+
+const GLuint numVertices = 6;
+
+/* Structure containing XYZ position and RGB color data */  
+typedef struct 
+{
+    GLfloat Position[3];
+    GLfloat UV[2];
+} VertexData;
+
+/* Define vertex positions and UV coordinates */
+VertexData Vertices[] =
+{ 
+    {{}, {1.0, 1.0}},
+    {{}, {1.0, 0.0}},
+    {{}, {0.0, 0.0}},
+    {{}, {0.0, 1.0}},
+
+    {{}, {0.0, 0.0}}, //those 4 are correct
+    {{}, {1.0, 0.0}},
+    {{}, {1.0, 1.0}},
+    {{}, {0.0, 1.0}},
+
+    {{}, {1.0, 0.0}},
+    {{}, {1.0, 1.0}},
+    {{}, {0.0, 1.0}},
+    {{}, {0.0, 0.0}},
+};
+
+
+
 /*----------------------------------------------------------------*/
+
+/******************************************************************
+*
+* SetupTexture
+*
+* This function is called to load the texture and initialize
+* texturing parameters
+*
+*******************************************************************/
+
+void SetupTexture(void)
+{	
+    /* Allocate texture container */
+    Texture = malloc(sizeof(TextureDataPtr));
+
+    int success = LoadTexture("data/wood.bmp", Texture);
+    if (!success)
+    {
+        printf("Error loading texture. Exiting.\n");
+	exit(-1);
+    }
+
+    /* Create texture name and store in handle */
+    glGenTextures(1, &TextureID);
+	
+    /* Bind texture */
+    glBindTexture(GL_TEXTURE_2D, TextureID);
+
+    /* Load texture image into memory */
+    glTexImage2D(GL_TEXTURE_2D,     /* Target texture */
+		 0,                 /* Base level */
+		 GL_RGB,            /* Each element is RGB triple */ 
+		 Texture->width,    /* Texture dimensions */ 
+            Texture->height, 
+		 0,                 /* Border should be zero */
+		 GL_BGR,            /* Data storage format for BMP file */
+		 GL_UNSIGNED_BYTE,  /* Type of pixel data, one byte per channel */
+		 Texture->data);    /* Pointer to image data  */
+ 
+    /* Next set up texturing parameters */
+
+    /* Repeat texture on edges when tiling */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    /* Linear interpolation for magnification */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    /* Trilinear MIP mapping for minification */ 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); 
+    glGenerateMipmap(GL_TEXTURE_2D); 
+
+    /* Note: MIP mapping not visible due to fixed, i.e. static camera */
+}
 
 /***********************************************************
 *
@@ -276,6 +374,29 @@ void Display()
 {
     /* Clear window; color specified in 'Initialize()' */
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+	//texture
+	glBindBuffer(GL_ARRAY_BUFFER, VBOtex);
+
+	/* Activate first (and only) texture unit */
+	glActiveTexture(GL_TEXTURE0);
+
+	/* Bind current texture  */
+	glBindTexture(GL_TEXTURE_2D, TextureID);
+
+	/* Get texture uniform handle from fragment shader */ 
+	GLint TextureUniform  = glGetUniformLocation(ShaderProgram, "myTextureSampler");
+
+
+
+
+	/* Set location of uniform sampler variable */ 
+	glUniform1i(TextureUniform, 0);
+
+	glEnableVertexAttribArray(vUV);
+
+	glVertexAttribPointer(vUV, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (const GLvoid*) sizeof(Vertices[0].Position));
 
     glEnableVertexAttribArray(vPosition);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -530,6 +651,11 @@ void SetupDataBuffers()
     glGenBuffers(1, &CBO1);
     glBindBuffer(GL_ARRAY_BUFFER, CBO1);
     glBufferData(GL_ARRAY_BUFFER, sizeof(color_buffer_data2), color_buffer_data2, GL_STATIC_DRAW);
+
+	//texturing - from example code
+	glGenBuffers(1, &VBOtex);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOtex);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
     
 
 /******************************************************* -- Ball -- *******************************************************/
@@ -876,7 +1002,7 @@ char* filename4 = "models/heart_3_normals.obj";
 	material.specular_color[1] = 1.0f;
 	material.specular_color[2] = 1.0f;
 
-	material.specular_shininess= 15.0f;
+	material.specular_shininess= 25.0f;
 
 	//should be the same as diffuse light color
 	light.ambient_color[0] = resultLight1[0];
@@ -894,9 +1020,9 @@ char* filename4 = "models/heart_3_normals.obj";
 	light.specular_color[2] = 1.0f;
 
 	//positioned in the edge facing right to the viewer
-	light.position[0] = 1.0f * *RotationMatrixAnim;
-	light.position[1] = 4.0f * *RotationMatrixAnim;
-	light.position[2] = -7.0f * *RotationMatrixAnim;
+	light.position[0] = -7.0f;
+	light.position[1] = 2.0f;
+	light.position[2] = -7.0f;
 
 
 	/**********************************************************************
@@ -990,6 +1116,8 @@ char* filename4 = "models/heart_3_normals.obj";
 	objectLight.position[0] = 10.0f * *RotationMatrixAnim;
 	objectLight.position[1] = 1.0f * *RotationMatrixAnim;
 	objectLight.position[2] = 10.0f * *RotationMatrixAnim;
+
+	SetupTexture();
 }
 
 

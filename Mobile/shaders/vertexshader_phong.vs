@@ -1,9 +1,12 @@
 #version 330
-//ground functionality found online
+//ground functionality found in a youtube tutorial
 
 layout (location = 0) in vec3 vPosition; //vertex position
 layout (location = 1) in vec3 outputColor;
 layout (location = 2) in vec3 vertex_normal;
+
+//texturing - from example code
+layout (location = 3) in vec2 UV;
 
 uniform mat4 ModelMatrix;
 uniform mat4 ProjectionMatrix;
@@ -14,6 +17,9 @@ uniform vec3 lightPosition;
 out vec3 vertexNormal;
 out vec3 eyeDirection; //camera dir
 out vec3 lightDirection;
+
+//texturing - from example code
+out vec2 UVcoords;
 
 void main() {
 	//multiply normal matrix with normal
@@ -28,5 +34,8 @@ void main() {
 
 	//gl_Position — contains the position of the current vertex
 	gl_Position = ProjectionMatrix*vec4(vertexInCamSpace, 1.0);
+
+	//texturing - from example code
+	UVcoords = UV;
 }
 

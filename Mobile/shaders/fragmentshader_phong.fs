@@ -1,5 +1,4 @@
 #version 330
-
 //ground functionality found online
 struct LightSource {
 	vec3 ambient_color;
@@ -21,6 +20,9 @@ uniform Material material;
 in vec3 vertexNormal;
 in vec3 eyeDirection;
 in vec3 lightDirection;
+in vec2 UVcoords;
+
+uniform sampler2D myTextureSampler;
 
 out vec4 outputColor;
 
@@ -45,5 +47,5 @@ void main() {
 	diffuse *= material.diffuse_color;
 	specular *= material.specular_color;
 
-	outputColor = vec4(ambient+diffuse+specular, 1.0);
+	outputColor = vec4(ambient+diffuse+specular, 1.0) * texture(myTextureSampler, UVcoords);
 }
