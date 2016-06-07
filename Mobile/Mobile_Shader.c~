@@ -44,6 +44,9 @@ GLushort *index_buffer_dataHeli;
 GLushort *index_buffer_dataBB8;
 GLushort *index_buffer_dataWand;
 
+/*test - fancy texturing*/
+GLfloat *vertex_texture_buffer_Heart;
+
 /* Structures for loading of OBJ data */
 obj_scene_data dataBall;
 obj_scene_data dataHeli;
@@ -203,9 +206,9 @@ GLushort index_buffer_data2[] = {
 
 /*----------------------------------TEXTURING------------------------------------*/
 //Variables for texture handling
-GLuint TextureID;
-GLuint TextureUniform;
-TextureDataPtr Texture;
+GLuint TextureID, TextureID2;
+GLuint TextureUniform, TextureUniform2;
+TextureDataPtr Texture, Texture2;
 
 const GLuint numVertices = 6;
 
@@ -253,7 +256,7 @@ void SetupTexture(void)
     /* Allocate texture container */
     Texture = malloc(sizeof(TextureDataPtr));
 
-    int success = LoadTexture("data/wood.bmp", Texture);
+    int success = LoadTexture("data/rose.bmp", Texture);
     if (!success)
     {
         printf("Error loading texture. Exiting.\n");
@@ -827,7 +830,6 @@ void Initialize(void)
 	/*  Copy mesh data from structs into appropriate arrays -- load Ball file */ 
 	int vert = dataBall.vertex_count;
 	int indx = dataBall.face_count;
-
 	vertex_buffer_dataBall = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
 	index_buffer_dataBall = (GLushort*) calloc (indx*3, sizeof(GLushort));
 
@@ -857,7 +859,6 @@ void Initialize(void)
 
 	vertex_buffer_dataHeli = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
 	index_buffer_dataHeli = (GLushort*) calloc (indx*3, sizeof(GLushort));
-
 	/* Vertices */
 	for(i=0; i<vert; i++) {
 		vertex_buffer_dataHeli[i*3] = (GLfloat)(*dataHeli.vertex_list[i]).e[0];
@@ -908,9 +909,13 @@ char* filename4 = "models/heart_3_normals.obj";
 	/*  Copy mesh data from structs into appropriate arrays -- load heli file */ 
 	vert = dataWand.vertex_count;
 	indx = dataWand.face_count;
-
+	int tex = dataWand.vertex_texture_count;
+	printf("\n\ntex: %d\n\n", tex);
+	
 	vertex_buffer_dataWand = (GLfloat*) calloc (vert*3, sizeof(GLfloat));
 	index_buffer_dataWand = (GLushort*) calloc (indx*3, sizeof(GLushort));
+	vertex_texture_buffer_Heart = (GLfloat*) calloc (tex*2, sizeof(GLfloat));
+
 
 	/* Vertices */
 	for(i=0; i<vert; i++) {
@@ -924,6 +929,11 @@ char* filename4 = "models/heart_3_normals.obj";
 		index_buffer_dataWand[i*3] = (GLushort)(*dataWand.face_list[i]).vertex_index[0];
 		index_buffer_dataWand[i*3+1] = (GLushort)(*dataWand.face_list[i]).vertex_index[1];
 		index_buffer_dataWand[i*3+2] = (GLushort)(*dataWand.face_list[i]).vertex_index[2];
+	}
+
+	for(i=0; i<tex; i++) {
+		vertex_texture_buffer_Heart[i*2] = (GLfloat)(*dataWand.vertex_texture_list[i]).vt[0];
+		vertex_texture_buffer_Heart[i*2+1] = (GLfloat)(*dataWand.vertex_texture_list[i]).vt[1];
 	}
 
     /* Set background (clear) color to black */ 
@@ -1020,9 +1030,9 @@ char* filename4 = "models/heart_3_normals.obj";
 	light.specular_color[2] = 1.0f;
 
 	//positioned in the edge facing right to the viewer
-	light.position[0] = -7.0f;
-	light.position[1] = 2.0f;
-	light.position[2] = -7.0f;
+	light.position[0] = 0.0f;
+	light.position[1] = 0.0f;
+	light.position[2] = 0.0f;
 
 
 	/**********************************************************************

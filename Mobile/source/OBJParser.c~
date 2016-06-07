@@ -369,7 +369,7 @@ int obj_parse_obj_file(obj_growable_scene_data *growable_data, char *filename)
 		
 		else if( strequal(current_token, "vt") ) //process vertex texture
 		{
-			list_add_item(&growable_data->vertex_texture_list, tex_parse_vector(), NULL);
+			list_add_item(&growable_data->vertex_texture_list,  tex_parse_vector(), NULL);
 		}
 		
 		else if( strequal(current_token, "f") ) //process face

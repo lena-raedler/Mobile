@@ -135,7 +135,7 @@ typedef struct
 {
 	obj_vector **vertex_list;
 	obj_vector **vertex_normal_list;
-	tex_vector **vertex_texture_list;
+	obj_vector **vertex_texture_list;
 	
 	obj_face **face_list;
 	obj_sphere **sphere_list;
