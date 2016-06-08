@@ -23,6 +23,7 @@ in vec3 lightDirection;
 in vec2 UVcoords;
 
 uniform sampler2D myTextureSampler;
+uniform float alpha;
 
 out vec4 outputColor;
 
@@ -47,5 +48,5 @@ void main() {
 	diffuse *= material.diffuse_color;
 	specular *= material.specular_color;
 
-	outputColor = vec4(ambient+diffuse+specular, 1.0) * texture(myTextureSampler, UVcoords);
+	outputColor = vec4(ambient+diffuse+specular, alpha) * texture(myTextureSampler, UVcoords);
 }

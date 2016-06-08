@@ -7,6 +7,8 @@ It requires libGLEW.so.1.13.
 
 For the thrid programming assingment we decided to delete the automatic camera mode.
 
+The second light source is sitting directly on each of the Models and moves around with it.
+
 Our keyboard functions:
 
 the normal mode which is activated when pressing 1
