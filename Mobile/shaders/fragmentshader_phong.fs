@@ -31,7 +31,7 @@ void main() {
 
 	vec3 E = normalize(eyeDirection);
 	vec3 N = normalize(vertexNormal);
-	vec3 L = normalize(lightDirection);
+	vec3 L = normalize(-lightDirection);
 
 	vec3 H = normalize(E + L);
 

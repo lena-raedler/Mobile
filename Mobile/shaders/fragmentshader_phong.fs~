@@ -19,7 +19,7 @@ uniform Material material;
 
 in vec3 vertexNormal;
 in vec3 eyeDirection;
-in vec3 lightDirection;
+in vec3 -lightDirection;
 in vec2 UVcoords;
 
 uniform sampler2D myTextureSampler;
@@ -48,5 +48,5 @@ void main() {
 	diffuse *= material.diffuse_color;
 	specular *= material.specular_color;
 
-	outputColor = vec4(ambient+diffuse+specular, 1.0) * texture(myTextureSampler, UVcoords, alpha);
+	outputColor = vec4(ambient+diffuse+specular, alpha) * texture(myTextureSampler, UVcoords);
 }

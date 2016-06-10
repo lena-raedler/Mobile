@@ -1,5 +1,5 @@
 #version 330
-//ground functionality found online
+//ground functionality found in a youtube tutorial
 
 layout (location = 0) in vec3 vPosition; //vertex position
 layout (location = 1) in vec3 outputColor;
@@ -24,7 +24,7 @@ out vec2 UVcoords;
 void main() {
 	//multiply normal matrix with normal
 	mat4 normalMatrix = transpose(inverse(ModelMatrix));
-	vertexNormal = (normalMatrix*vec4(vertex_normal, 0.0)).xyz;
+	vertexNormal = (normalMatrix*vec4(-vertex_normal, 0.0)).xyz;
 
 	vec3 vertexInCamSpace = vec4(ViewMatrix*ModelMatrix*vec4(vPosition.x, vPosition.y, vPosition.z, 1.0)).xyz;
 	eyeDirection = -vertexInCamSpace.xyz; //eye vector

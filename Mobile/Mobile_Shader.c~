@@ -341,7 +341,7 @@ void SetupTexture2(void)
 
     /* Load texture image into memory */
     glTexImage2D(GL_TEXTURE_2D,     /* Target texture */
-		 -1,                 /* Base level */
+		 0,                 /* Base level */
 		 GL_RGB,            /* Each element is RGB triple */ 
 		 Texture2->width,    /* Texture dimensions */ 
             Texture2->height, 
@@ -480,8 +480,7 @@ void Display()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
     GLint size; 
     glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
-
-
+	
 
     /* Associate program with shader matrices */
     GLint projectionUniform = glGetUniformLocation(ShaderProgram, "ProjectionMatrix");
@@ -581,13 +580,16 @@ void Display()
 	GLint m2ShininessUniform = glGetUniformLocation(ShaderProgram, "material.specular_shininess");
 	glUniform1f(m2ShininessUniform, objectMaterial.specular_shininess);
 
-	
+
 	glBindBuffer(GL_ARRAY_BUFFER, VBOBall); //object files
 	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 	/* Bind buffer with index data of currently active object -- ball */
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOBall);
 	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+	
+	glEnableVertexAttribArray(vertex_normal);
+    glVertexAttribPointer(vertex_normal, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 	MultiplyMatrix(RotationMatrixAnim, BallMatrix, BallMatrix);
 	glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, BallMatrix);  
@@ -599,6 +601,7 @@ void Display()
 	/* Bind buffer with index data of currently active object -- heli */
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOHeli);
 	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+    glVertexAttribPointer(vertex_normal, 3, GL_FLOAT, GL_FALSE, 0, 0);
     
     MultiplyMatrix(RotateHeli, HelicopterMatrix, HelicopterMatrix);
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, HelicopterMatrix);  
@@ -614,6 +617,7 @@ void Display()
     MultiplyMatrix(RotateBB8, BB8Matrix, BB8Matrix);
     glUniformMatrix4fv(RotationUniform, 1, GL_TRUE, BB8Matrix);  
     glDrawElements(GL_TRIANGLES, size/sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+    glVertexAttribPointer(vertex_normal, 3, GL_FLOAT, GL_FALSE, 0, 0);
     
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBOWand); //object files
@@ -1160,9 +1164,9 @@ char* filename4 = "models/heart_with_normals.obj";
 	light.specular_color[2] = 1.0f;
 
 	//positioned in the edge facing right to the viewer
-	light.position[0] = 0.0f;
-	light.position[1] = 0.0f;
-	light.position[2] = 0.0f;
+	light.position[0] = 7.0f;
+	light.position[1] = 2.0f;
+	light.position[2] = -7.0f;
 
 
 	/**********************************************************************

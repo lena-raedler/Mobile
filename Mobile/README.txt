@@ -7,6 +7,7 @@ It requires libGLEW.so.1.13.
 
 For the fourth Programming assignment we tried to add textures and billboards to out Mobile implementation.
 One texture worked nearly at first try, but it does get shown on the middle bar too (we don't know why).
+The strings connecting the objects are textured as well.
 The other texture we wanted to add to all objects, but it didn't work and resulted in Segmentation Faults.
 
 Functionality for the BillBoard exists, but it doesn't get shown at all. But you can make the whole scene black with it.
